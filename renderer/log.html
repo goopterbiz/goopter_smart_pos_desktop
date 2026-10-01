@@ -8,6 +8,18 @@
 </head>
 <body class="log">
   <header>
+    <div class="more">
+      <button id="more" aria-label="More" aria-haspopup="menu" aria-expanded="false" aria-controls="menu">&middot;&middot;&middot;</button>
+      <div class="menu" id="menu" role="menu" hidden>
+        <button class="item" role="menuitem" id="home"><span class="check"></span>Home</button>
+        <button class="item" role="menuitem" id="change"><span class="check"></span>Change store&hellip;</button>
+        <hr>
+        <div class="section">Window mode</div>
+        <button class="item" role="menuitemradio" aria-checked="false" id="mode-kiosk"><span class="check"></span>Kiosk</button>
+        <button class="item" role="menuitemradio" aria-checked="false" id="mode-window"><span class="check"></span>Window</button>
+        <div class="note">Applies now and on every launch.</div>
+      </div>
+    </div>
     <h1>Diagnostic log</h1>
     <button id="refresh">Refresh</button>
     <button class="primary" id="done">Done</button>
@@ -17,8 +29,7 @@
     <tbody id="entries"></tbody>
   </table>
   <footer>
-    <button id="home">Home</button>
-    <button id="change">Change store</button>
+    <div class="where" id="where"></div>
   </footer>
   <script src="log.js"></script>
 </body>

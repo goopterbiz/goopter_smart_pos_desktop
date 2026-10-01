@@ -43,5 +43,10 @@ if (role.role === "pos") {
     home: () => ipcRenderer.invoke("shell:home"),
     readLog: () => ipcRenderer.invoke("shell:read-log"),
     closeLog: () => ipcRenderer.invoke("shell:close-log"),
+    logPath: () => ipcRenderer.invoke("shell:log-path"),
+    setLogMenuOpen: (open: unknown) => ipcRenderer.invoke("shell:log-menu", open === true),
+    getKiosk: () => ipcRenderer.invoke("shell:get-kiosk"),
+    // Passed through as given: the main process refuses anything but a boolean.
+    setKiosk: (value: unknown) => ipcRenderer.invoke("shell:set-kiosk", value),
   });
 }

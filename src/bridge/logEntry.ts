@@ -24,7 +24,9 @@ export type LogEvent =
   | "timeout"
   | "failed"
   /** An error or `console.error` from the hosted page. */
-  | "page_error";
+  | "page_error"
+  /** The window mode was chosen from the diagnostic log (C5). Outcome `kiosk` or `window`. */
+  | "window_mode";
 
 export type LogSink = (entry: LogEntry) => void | Promise<void>;
 

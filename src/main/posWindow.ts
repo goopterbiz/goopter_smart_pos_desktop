@@ -4,7 +4,9 @@ import { isAllowed, originOf } from "../bridge/hostPolicy.js";
 import type { JobLog } from "../bridge/jobLog.js";
 import { decideNavigation } from "../bridge/navigationPolicy.js";
 import { isPermissionGranted } from "../bridge/permissionPolicy.js";
+import { kioskAtLaunch } from "../bridge/settings.js";
 import { debugOrigin, preloadPath, rendererDir, windowed } from "./config.js";
+import { readSettings } from "./settings.js";
 import { storedLaunchUrl } from "./tenantStore.js";
 
 /** Chromium's ERR_ABORTED: a navigation superseded by another, not a failure to report. */
@@ -18,11 +20,13 @@ const webPreferences = {
   nodeIntegration: false,
   webSecurity: true,
   spellcheck: false,
+  // The dev override only. Window mode chosen at the till (C5) never opens developer tools.
   devTools: windowed,
 } as const;
 
 /**
- * The till's one window: kiosk, full screen, showing the POS (SPEC §6).
+ * The till's one window: kiosk, full screen, showing the POS (SPEC §6), unless window mode was
+ * chosen from the log (C5).
  *
  * Owns the navigation policy, the load-failure screen, keeping the display awake while the POS is
  * open, and the two shortcuts that reach the app itself: Ctrl/Cmd+Shift+L for the diagnostic log
@@ -31,13 +35,15 @@ const webPreferences = {
 export class PosWindow {
   readonly window: BrowserWindow;
   private logWindow: BrowserWindow | null = null;
+  /** True while the log's ⋯ menu is open, so Esc closes the menu rather than the log (C6). */
+  private logMenuOpen = false;
   /** False until a POS page commits. Before then an off-allowlist page is a failed start. */
   private hasLoadedPage = false;
   private wakeLock: number | null = null;
 
   constructor(private readonly log: JobLog) {
     this.window = new BrowserWindow({
-      kiosk: !windowed,
+      kiosk: kioskAtLaunch({ windowedOverride: windowed, saved: readSettings() }),
       show: false,
       width: 1280,
       height: 800,
@@ -78,6 +84,33 @@ export class PosWindow {
     this.showScreen("failure.html", { url, error });
   }
 
+  /** Kiosk or an ordinary window, at once, with no restart (C5). */
+  setKiosk(value: boolean): void {
+    const log = this.logWindow;
+    if (process.platform !== "darwin" || log === null || !log.isVisible() || this.window.isFullScreen() === value) {
+      this.window.setKiosk(value);
+      return;
+    }
+    // On macOS the log is a sheet on this window, and a window with a sheet attached neither enters
+    // nor leaves full screen: the kiosk flag changes, the screen does not, and quitting then hangs.
+    // The sheet is put away for the transition and brought back after it.
+    const reshow = () => {
+      clearTimeout(fallback);
+      if (!log.isDestroyed() && !log.isVisible()) log.show();
+    };
+    const fallback = setTimeout(reshow, 3_000);
+    log.once("hide", () => {
+      if (value) this.window.once("enter-full-screen", reshow);
+      else this.window.once("leave-full-screen", reshow);
+      this.window.setKiosk(value);
+    });
+    log.hide();
+  }
+
+  setLogMenuOpen(open: boolean): void {
+    this.logMenuOpen = open;
+  }
+
   openLog(): void {
     if (this.logWindow !== null) {
       this.logWindow.focus();
@@ -94,9 +127,11 @@ export class PosWindow {
     });
     this.logWindow.on("closed", () => {
       this.logWindow = null;
+      this.logMenuOpen = false;
     });
     this.logWindow.webContents.on("before-input-event", (event, input) => {
-      if (input.type === "keyDown" && input.key === "Escape") {
+      // With the menu open the page gets the key and closes the menu.
+      if (input.type === "keyDown" && input.key === "Escape" && !this.logMenuOpen) {
         event.preventDefault();
         this.closeLog();
       }

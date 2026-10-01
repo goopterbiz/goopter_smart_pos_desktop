@@ -1,14 +1,16 @@
 import os from "node:os";
+import path from "node:path";
 import { app, ipcMain, Menu, type IpcMainEvent, type IpcMainInvokeEvent, type WebFrameMain } from "electron";
 import { SUPPORTED_PROTOCOL_VERSIONS } from "../bridge/constants.js";
 import { originOf } from "../bridge/hostPolicy.js";
-import { JobLog } from "../bridge/jobLog.js";
+import { JobLog, LOG_FILE_NAME } from "../bridge/jobLog.js";
 import { hasLocalNetworkPermission, LocalNetworkSuspicion } from "../bridge/localNetworkSuspicion.js";
 import { frameRole } from "../bridge/navigationPolicy.js";
 import { PrintBridgeHandler } from "../bridge/printBridgeHandler.js";
 import { PrintService } from "../bridge/printService.js";
 import { debugOrigin, shellUrlPrefix, userDataOverride } from "./config.js";
 import { PosWindow } from "./posWindow.js";
+import { writeSettings } from "./settings.js";
 import { clearStore, saveStore, storedLaunchUrl } from "./tenantStore.js";
 
 if (userDataOverride !== null) app.setPath("userData", userDataOverride);
@@ -102,4 +104,14 @@ function registerIpc(pos: PosWindow, handler: PrintBridgeHandler, log: JobLog): 
   shellHandle("shell:read-log", async () =>
     (await log.recent(2_000)).map((entry) => ({ ...entry, timestamp: entry.timestamp.toISOString() })),
   );
+  shellHandle("shell:log-path", () => path.join(app.getPath("userData"), LOG_FILE_NAME));
+  shellHandle("shell:log-menu", (_event, open) => pos.setLogMenuOpen(open === true));
+  shellHandle("shell:get-kiosk", () => pos.window.isKiosk());
+  // Saved first, so a mode that cannot be saved is not applied for this run only (C5).
+  shellHandle("shell:set-kiosk", async (_event, value) => {
+    if (typeof value !== "boolean") throw new Error("Window mode must be true or false.");
+    writeSettings({ kiosk: value });
+    pos.setKiosk(value);
+    await log.append({ timestamp: new Date(), event: "window_mode", origin: "app", outcome: value ? "kiosk" : "window" });
+  });
 }

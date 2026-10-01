@@ -67,18 +67,23 @@ them.
 | Variable | Effect |
 |---|---|
 | `GOOPTER_DEBUG_URL=http://localhost:8069/odoo/point-of-sale` | Load this instead of the saved store. Its origin gets the bridge. |
-| `GOOPTER_WINDOWED=true` | Ordinary window with developer tools instead of kiosk. |
+| `GOOPTER_WINDOWED=true` | Ordinary window with developer tools instead of kiosk, whatever window mode is saved. |
 | `GOOPTER_USER_DATA=/tmp/x` | Keep settings, log and cookies in another directory. |
 
 ## At the till
 
 | Shortcut | Action |
 |---|---|
-| Ctrl+Shift+L (Cmd+Shift+L on macOS) | Diagnostic log, with Home and Change store |
+| Ctrl+Shift+L (Cmd+Shift+L on macOS) | Diagnostic log. Its ⋯ menu has Home, Change store and Window mode |
 | Ctrl+Shift+Q (Cmd+Shift+Q on macOS) | Quit, after a confirmation |
 
 The store is asked for once and remembered. Change store clears the saved store and the website
 data, so the next store does not open signed in as the last one.
+
+Window mode is Kiosk or Window. It applies at once and is saved as `{"kiosk": false}` or
+`{"kiosk": true}` in `settings.json` in the user data folder, so it holds on every launch. A missing
+or unreadable file means kiosk. In an unpackaged build `GOOPTER_WINDOWED=true` overrides it. Window
+mode never enables developer tools.
 
 The display is kept awake while the POS is open.
 

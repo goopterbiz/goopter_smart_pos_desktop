@@ -14,8 +14,22 @@ code { word-break: break-all; }
 body.log { display: block; background: #fff; }
 body.log header, body.log footer { position: sticky; background: #fff; padding: 12px 20px; display: flex; gap: 12px; align-items: center; border-bottom: 1px solid #e4e7eb; }
 body.log header { top: 0; }
-body.log footer { bottom: 0; border-top: 1px solid #e4e7eb; border-bottom: 0; justify-content: flex-end; }
+body.log header { z-index: 1; }
+body.log footer { bottom: 0; border-top: 1px solid #e4e7eb; border-bottom: 0; }
 body.log header h1 { flex: 1; font-size: 20px; margin: 0; }
+body.log footer .where { font-size: 12px; color: #52606d; word-break: break-all; }
+/* The ⋯ menu (C6): opens down from the button's left edge. */
+body.log .more { position: relative; }
+body.log .more > button { width: 48px; padding-left: 0; padding-right: 0; letter-spacing: 1px; }
+body.log .more > button.open { background: #eef2ff; border-color: #2563eb; }
+body.log .menu { position: absolute; left: 0; top: calc(100% + 6px); width: 260px; background: #fff; border: 1px solid #cbd2d9; border-radius: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, .18); padding: 6px; z-index: 10; }
+body.log .menu .item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; border: 0; border-radius: 6px; background: none; color: inherit; font: inherit; font-size: 14px; text-align: left; }
+body.log .menu .item:hover, body.log .menu .item:focus-visible { background: #f1f5f9; outline: none; }
+body.log .menu .check { width: 16px; color: #2563eb; font-weight: 700; }
+body.log .menu .item[aria-checked="true"] .check::before { content: "\2713"; }
+body.log .menu .section { padding: 8px 12px 4px; font-size: 12px; font-weight: 600; color: #52606d; text-transform: uppercase; letter-spacing: .04em; }
+body.log .menu .note { padding: 0 12px 8px 38px; font-size: 12px; color: #52606d; line-height: 1.4; }
+body.log .menu hr { border: 0; border-top: 1px solid #e4e7eb; margin: 6px 0; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th, td { text-align: left; padding: 6px 20px 6px 0; border-bottom: 1px solid #f0f2f5; vertical-align: top; }
 th:first-child, td:first-child { padding-left: 20px; }
