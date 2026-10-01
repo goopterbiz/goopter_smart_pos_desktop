@@ -67,7 +67,7 @@ them.
 | Variable | Effect |
 |---|---|
 | `GOOPTER_DEBUG_URL=http://localhost:8069/odoo/point-of-sale` | Load this instead of the saved store. Its origin gets the bridge. |
-| `GOOPTER_WINDOWED=1` | Ordinary window with developer tools instead of kiosk. |
+| `GOOPTER_WINDOWED=true` | Ordinary window with developer tools instead of kiosk. |
 | `GOOPTER_USER_DATA=/tmp/x` | Keep settings, log and cookies in another directory. |
 
 ## At the till
