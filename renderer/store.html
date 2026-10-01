@@ -6,13 +6,13 @@
   <title>Goopter Smart POS</title>
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="store">
   <main>
-    <h1>Which store is this till for?</h1>
-    <p>Enter the store name from its Goopter address. You can also paste the whole address.</p>
     <form id="form">
       <label for="store">Store</label>
-      <div class="address"><span>https://</span><input id="store" autocomplete="off" autocapitalize="off" spellcheck="false" autofocus><span>.goopter.com</span></div>
+      <div class="address" id="address">
+        <span>https://</span><input id="store" autocomplete="off" autocapitalize="off" spellcheck="false" autofocus placeholder="jadegarden"><span>.goopter.com</span>
+      </div>
       <p class="error" id="error" role="alert"></p>
       <div class="actions"><button class="primary" type="submit">Open</button></div>
     </form>

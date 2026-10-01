@@ -20,3 +20,14 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th, td { text-align: left; padding: 6px 20px 6px 0; border-bottom: 1px solid #f0f2f5; vertical-align: top; }
 th:first-child, td:first-child { padding-left: 20px; }
 td.outcome { word-break: break-word; }
+
+/* Store screen (C7): the card holds only the label, field, error line and button, centred. */
+body.store main { display: flex; flex-direction: column; align-items: center; }
+body.store label { margin: 0 0 8px; }
+/* https://, the input and .goopter.com share one border; the input itself has none. */
+body.store .address { font-size: 17px; height: 44px; border: 1px solid #cbd2d9; border-radius: 8px; padding: 0 12px; }
+body.store .address span { color: #52606d; }
+body.store .address:focus-within { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, .15); }
+body.store .address.invalid { border-color: #b91c1c; }
+body.store input { flex: none; border: none; padding: 0 1px; font-size: 17px; }
+body.store input:focus { outline: none; }

@@ -41,11 +41,31 @@ test("the store screen gets the shell API and no print bridge", async () => {
     .toEqual(["object", "undefined"]);
 });
 
+test("the screen has no heading, only the field, error line and Open button", async () => {
+  expect(await page.locator("h1").count()).toBe(0);
+  expect(await page.locator("#form p:not(.error)").count()).toBe(0);
+});
+
+test("the input grows with typed text", async () => {
+  const empty = await page.locator("#store").evaluate((el: HTMLInputElement) => el.offsetWidth);
+  await page.fill("#store", "a-much-longer-store-name-than-the-placeholder");
+  const filled = await page.locator("#store").evaluate((el: HTMLInputElement) => el.offsetWidth);
+  expect(filled).toBeGreaterThan(empty);
+  await page.fill("#store", "");
+});
+
 test("a name that is not one label is refused and nothing is saved", async () => {
   await page.fill("#store", "evil.com");
   await page.click("button[type=submit]");
   await expect(page.locator("#error")).toContainText("That is not a store name.");
   expect(existsSync(path.join(userData, "store.json"))).toBe(false);
+});
+
+test(".invalid is set on the field after a refusal and cleared on the next keystroke", async () => {
+  await expect(page.locator(".address")).toHaveClass(/invalid/);
+  await page.locator("#store").pressSequentially("x");
+  await expect(page.locator(".address")).not.toHaveClass(/invalid/);
+  await page.fill("#store", "");
 });
 
 test("a pasted address is saved as its slug only", async () => {
