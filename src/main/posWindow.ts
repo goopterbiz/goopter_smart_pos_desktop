@@ -37,6 +37,12 @@ export class PosWindow {
   private logWindow: BrowserWindow | null = null;
   /** True while the log's ⋯ menu is open, so Esc closes the menu rather than the log (C6). */
   private logMenuOpen = false;
+  /**
+   * Whether the window was full screen when it last entered kiosk. Electron leaves kiosk back into
+   * that state, so leaving kiosk from a full screen start has no transition. Kiosk at launch starts
+   * from an ordinary window.
+   */
+  private fullScreenBeforeKiosk = false;
   /** False until a POS page commits. Before then an off-allowlist page is a failed start. */
   private hasLoadedPage = false;
   private wakeLock: number | null = null;
@@ -87,24 +93,42 @@ export class PosWindow {
   /** Kiosk or an ordinary window, at once, with no restart (C5). */
   setKiosk(value: boolean): void {
     const log = this.logWindow;
-    if (process.platform !== "darwin" || log === null || !log.isVisible() || this.window.isFullScreen() === value) {
-      this.window.setKiosk(value);
+    if (process.platform !== "darwin" || log === null || !log.isVisible() || !this.changesFullScreen(value)) {
+      this.applyKiosk(value);
       return;
     }
     // On macOS the log is a sheet on this window, and a window with a sheet attached neither enters
     // nor leaves full screen: the kiosk flag changes, the screen does not, and quitting then hangs.
-    // The sheet is put away for the transition and brought back after it.
+    // The sheet is put away for the transition and brought back after it. Each wait has a timeout,
+    // so a lost event delays the change rather than dropping it or leaving the log hidden.
+    const transition = value ? "enter-full-screen" : "leave-full-screen";
+    let timer: NodeJS.Timeout;
     const reshow = () => {
-      clearTimeout(fallback);
+      clearTimeout(timer);
+      this.window.removeListener(transition as "enter-full-screen", reshow);
       if (!log.isDestroyed() && !log.isVisible()) log.show();
     };
-    const fallback = setTimeout(reshow, 3_000);
-    log.once("hide", () => {
-      if (value) this.window.once("enter-full-screen", reshow);
-      else this.window.once("leave-full-screen", reshow);
-      this.window.setKiosk(value);
-    });
+    const apply = () => {
+      clearTimeout(timer);
+      log.removeListener("hide", apply);
+      this.window.once(transition as "enter-full-screen", reshow);
+      this.applyKiosk(value);
+      timer = setTimeout(reshow, 3_000);
+    };
+    timer = setTimeout(apply, 1_000);
+    log.once("hide", apply);
     log.hide();
+  }
+
+  /** Whether `BrowserWindow.setKiosk(value)` will enter or leave full screen. */
+  private changesFullScreen(value: boolean): boolean {
+    if (value === this.window.isKiosk()) return false;
+    return value ? !this.window.isFullScreen() : !this.fullScreenBeforeKiosk;
+  }
+
+  private applyKiosk(value: boolean): void {
+    if (value && !this.window.isKiosk()) this.fullScreenBeforeKiosk = this.window.isFullScreen();
+    this.window.setKiosk(value);
   }
 
   setLogMenuOpen(open: boolean): void {
