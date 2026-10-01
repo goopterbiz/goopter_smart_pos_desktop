@@ -25,7 +25,7 @@ td.outcome { word-break: break-word; }
 body.store main { display: flex; flex-direction: column; align-items: center; }
 body.store label { margin: 0 0 8px; }
 /* https://, the input and .goopter.com share one border; the input itself has none. */
-body.store .address { font-size: 17px; height: 44px; border: 1px solid #cbd2d9; border-radius: 8px; padding: 0 12px; }
+body.store .address { box-sizing: border-box; font-size: 17px; height: 44px; border: 1px solid #cbd2d9; border-radius: 8px; padding: 0 12px; }
 body.store .address span { color: #52606d; }
 body.store .address:focus-within { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, .15); }
 body.store .address.invalid { border-color: #b91c1c; }

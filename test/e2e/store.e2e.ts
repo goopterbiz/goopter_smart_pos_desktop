@@ -43,7 +43,12 @@ test("the store screen gets the shell API and no print bridge", async () => {
 
 test("the screen has no heading, only the field, error line and Open button", async () => {
   expect(await page.locator("h1").count()).toBe(0);
-  expect(await page.locator("#form p:not(.error)").count()).toBe(0);
+  expect(await page.locator("main p:not(.error)").count()).toBe(0);
+});
+
+test("the address field is exactly 44px tall", async () => {
+  const height = await page.locator(".address").evaluate((el) => el.getBoundingClientRect().height);
+  expect(height).toBe(44);
 });
 
 test("the input grows with typed text", async () => {
