@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'">
+  <title>Diagnostic log</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="log">
+  <header>
+    <h1>Diagnostic log</h1>
+    <button id="refresh">Refresh</button>
+    <button class="primary" id="done">Done</button>
+  </header>
+  <table>
+    <thead><tr><th>Time</th><th>Event</th><th>Origin</th><th>Target</th><th>Bytes</th><th>ms</th><th>Outcome</th></tr></thead>
+    <tbody id="entries"></tbody>
+  </table>
+  <footer>
+    <button id="home">Home</button>
+    <button id="change">Change store</button>
+  </footer>
+  <script src="log.js"></script>
+</body>
+</html>

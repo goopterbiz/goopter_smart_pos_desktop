@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'">
+  <title>Goopter Smart POS</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <h1>Which store is this till for?</h1>
+    <p>Enter the store name from its Goopter address. You can also paste the whole address.</p>
+    <form id="form">
+      <label for="store">Store</label>
+      <div class="address"><span>https://</span><input id="store" autocomplete="off" autocapitalize="off" spellcheck="false" autofocus><span>.goopter.com</span></div>
+      <p class="error" id="error" role="alert"></p>
+      <div class="actions"><button class="primary" type="submit">Open</button></div>
+    </form>
+  </main>
+  <script src="store.js"></script>
+</body>
+</html>

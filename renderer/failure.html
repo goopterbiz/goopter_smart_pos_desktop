@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'">
+  <title>Goopter Smart POS</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <h1>The point of sale could not be opened</h1>
+    <p>Check this computer is connected to the internet, then try again.</p>
+    <p><code id="url"></code></p>
+    <p id="error"></p>
+    <div class="actions">
+      <button class="primary" id="retry">Try again</button>
+      <button id="change">Change store</button>
+    </div>
+  </main>
+  <script src="failure.js"></script>
+</body>
+</html>

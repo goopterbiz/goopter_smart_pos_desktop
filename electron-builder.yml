@@ -1,0 +1,25 @@
+# Packaging for macOS, Windows and Linux. Code signing, notarization and auto-update are not
+# configured yet: builds are unsigned.
+appId: com.goopter.smartpos
+productName: Goopter Smart POS
+directories:
+  output: release
+files:
+  - dist/**/*.js
+  - renderer/**/*
+  - package.json
+mac:
+  target: dmg
+  category: public.app-category.business
+  hardenedRuntime: true
+  extendInfo:
+    # Shown in the macOS 15+ Local Network prompt, which gates every print (SPEC §8.2).
+    NSLocalNetworkUsageDescription: Goopter Smart POS sends receipts and kitchen tickets to printers on the store network.
+win:
+  target: nsis
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Office
+  maintainer: Goopter
