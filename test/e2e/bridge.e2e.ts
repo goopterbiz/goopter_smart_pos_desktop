@@ -185,17 +185,3 @@ test("GOOPTER_WINDOWED=1 leaves kiosk on; only \"true\" disables it (C1)", async
     rmSync(otherUserData, { recursive: true, force: true });
   }
 });
-
-test("alert audio plays with no prior gesture in the POS window (C4)", async () => {
-  const outcome = await page.evaluate(
-    () =>
-      new Promise<string>((resolve) => {
-        const audio = new Audio("data:audio/wav;base64,UklGRiUAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQEAAACA");
-        audio.play().then(
-          () => resolve("played"),
-          (error: Error) => resolve(`rejected: ${error.name}`),
-        );
-      }),
-  );
-  expect(outcome).toBe("played");
-});

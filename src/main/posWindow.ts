@@ -22,16 +22,6 @@ const webPreferences = {
 } as const;
 
 /**
- * The POS window only (C4): the kiosk tones play on their own, with no prior tap, so a till that
- * restarts unattended is not silent for its first alert. The diagnostic log window keeps the
- * default autoplay policy; it has no audio of its own.
- */
-const posWebPreferences = {
-  ...webPreferences,
-  autoplayPolicy: "no-user-gesture-required",
-} as const;
-
-/**
  * The till's one window: kiosk, full screen, showing the POS (SPEC §6).
  *
  * Owns the navigation policy, the load-failure screen, keeping the display awake while the POS is
@@ -54,7 +44,7 @@ export class PosWindow {
       backgroundColor: "#ffffff",
       autoHideMenuBar: true,
       title: "Goopter Smart POS",
-      webPreferences: posWebPreferences,
+      webPreferences,
     });
     this.window.once("ready-to-show", () => this.window.show());
     this.window.on("closed", () => this.releaseWakeLock());
