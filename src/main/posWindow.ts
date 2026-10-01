@@ -3,6 +3,7 @@ import { BrowserWindow, dialog, powerSaveBlocker, shell, session, app, type WebC
 import { isAllowed, originOf } from "../bridge/hostPolicy.js";
 import type { JobLog } from "../bridge/jobLog.js";
 import { decideNavigation } from "../bridge/navigationPolicy.js";
+import { isPermissionGranted } from "../bridge/permissionPolicy.js";
 import { debugOrigin, preloadPath, rendererDir, windowed } from "./config.js";
 import { storedLaunchUrl } from "./tenantStore.js";
 
@@ -167,13 +168,15 @@ export class PosWindow {
       this.showFailure(contents.getURL(), `The page stopped (${details.reason}).`);
     });
 
-    // Permissions (camera, clipboard, notifications) only for the POS itself.
+    // Permissions (camera, clipboard, ...) for the POS itself, notifications refused everywhere (C2).
     const ses = contents.session;
-    ses.setPermissionRequestHandler((_wc, _permission, callback, details) => {
-      callback(details.isMainFrame && isAllowed(details.requestingUrl, debugOrigin));
+    ses.setPermissionRequestHandler((_wc, permission, callback, details) => {
+      callback(
+        isPermissionGranted({ permission, url: details.requestingUrl, isMainFrame: details.isMainFrame, debugOrigin }),
+      );
     });
-    ses.setPermissionCheckHandler((_wc, _permission, requestingOrigin, details) => {
-      return details.isMainFrame && isAllowed(requestingOrigin, debugOrigin);
+    ses.setPermissionCheckHandler((_wc, permission, requestingOrigin, details) => {
+      return isPermissionGranted({ permission, url: requestingOrigin, isMainFrame: details.isMainFrame, debugOrigin });
     });
   }
 

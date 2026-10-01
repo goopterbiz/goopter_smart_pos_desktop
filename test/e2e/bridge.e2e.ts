@@ -44,7 +44,7 @@ test.beforeAll(async () => {
       ...process.env,
       GOOPTER_DEBUG_URL: `http://127.0.0.1:${portOf(posServer)}/odoo/point-of-sale`,
       GOOPTER_USER_DATA: userData,
-      GOOPTER_WINDOWED: "1",
+      GOOPTER_WINDOWED: "true",
     },
   });
   page = await app.firstWindow();
@@ -157,4 +157,31 @@ test("the log records the launch and every call, never the payload", async () =>
   expect(events).toContainEqual(expect.objectContaining({ event: "rejected", origin, outcome: "malformed" }));
   expect(events).toContainEqual(expect.objectContaining({ event: "bridge_call", origin, target: "10.255.255.1:9100", bytes: 2 }));
   expect(text).not.toContain("G0A=");
+});
+
+test("GOOPTER_WINDOWED=true disables kiosk (C1)", async () => {
+  const win = await app.browserWindow(page);
+  expect(await win.evaluate((w) => w.isKiosk())).toBe(false);
+});
+
+test("GOOPTER_WINDOWED=1 leaves kiosk on; only \"true\" disables it (C1)", async () => {
+  const otherUserData = mkdtempSync(path.join(tmpdir(), "goopter-e2e-"));
+  const otherApp = await electron.launch({
+    args: [root],
+    env: {
+      ...process.env,
+      GOOPTER_DEBUG_URL: `http://127.0.0.1:${portOf(posServer)}/odoo/point-of-sale`,
+      GOOPTER_USER_DATA: otherUserData,
+      GOOPTER_WINDOWED: "1",
+    },
+  });
+  try {
+    const otherPage = await otherApp.firstWindow();
+    await otherPage.waitForLoadState("load");
+    const win = await otherApp.browserWindow(otherPage);
+    expect(await win.evaluate((w) => w.isKiosk())).toBe(true);
+  } finally {
+    await otherApp.close();
+    rmSync(otherUserData, { recursive: true, force: true });
+  }
 });
