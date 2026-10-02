@@ -42,13 +42,12 @@ function showMode(kiosk) {
 }
 
 async function openMenu() {
-  // The main process lets Esc through to this page only while the menu is open, so the menu is
-  // shown once it knows: an Esc straight after opening then closes the menu, not the log.
-  await window.goopterShell.setLogMenuOpen(true);
-  showMode(await window.goopterShell.getKiosk());
   menu.hidden = false;
   more.classList.add("open");
   more.setAttribute("aria-expanded", "true");
+  // The main process lets Esc through to this page only while the menu is open.
+  window.goopterShell.setLogMenuOpen(true);
+  showMode(await window.goopterShell.getKiosk());
 }
 
 function closeMenu() {
@@ -74,15 +73,11 @@ document.addEventListener("click", (event) => {
   if (!more.parentElement.contains(event.target)) closeMenu();
 });
 document.addEventListener("keydown", (event) => {
-  if (event.key !== "Escape") return;
-  event.preventDefault();
-  if (menu.hidden) {
-    // The menu has just closed and the main process has not heard yet: this Esc is for the log.
-    window.goopterShell.closeLog();
-    return;
+  if (event.key === "Escape" && !menu.hidden) {
+    event.preventDefault();
+    closeMenu();
+    more.focus();
   }
-  closeMenu();
-  more.focus();
 });
 document.getElementById("home").addEventListener("click", () => {
   closeMenu();
