@@ -1,5 +1,5 @@
 import path from "node:path";
-import { BrowserWindow, dialog, powerSaveBlocker, shell, session, app, type WebContents } from "electron";
+import { BrowserWindow, dialog, powerSaveBlocker, session, app, type WebContents } from "electron";
 import { isAllowed, originOf } from "../bridge/hostPolicy.js";
 import type { JobLog } from "../bridge/jobLog.js";
 import { decideNavigation } from "../bridge/navigationPolicy.js";
@@ -190,7 +190,7 @@ export class PosWindow {
       });
       if (decision === "load") return;
       event.preventDefault();
-      if (decision === "openInBrowser" || decision === "handToSystem") void shell.openExternal(url);
+      // Nothing is handed to the system browser: a blocked navigation stays blocked.
       if (decision === "refuseStart") this.showFailure(url, "This address is not a Goopter store.");
     };
 
@@ -200,12 +200,9 @@ export class PosWindow {
       if (!event.isMainFrame) apply(event, event.url, false);
     });
 
-    // New windows never open inside the app. A web address goes to the system browser, where it
-    // is visibly not the POS and has no bridge; anything else is dropped.
-    contents.setWindowOpenHandler(({ url }) => {
-      if (originOf(url) !== null) void shell.openExternal(url);
-      return { action: "deny" };
-    });
+    // New windows are refused and nothing opens in the system browser. Odoo's kiosk launcher
+    // (goopter_kiosk_core open_url.js) then falls back to loading the page in this window.
+    contents.setWindowOpenHandler(() => ({ action: "deny" }));
 
     contents.on("did-navigate", (_event, url) => {
       if (isAllowed(url, debugOrigin)) {
