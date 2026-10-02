@@ -4,6 +4,7 @@ import { app, ipcMain, Menu, type IpcMainEvent, type IpcMainInvokeEvent, type We
 import { SUPPORTED_PROTOCOL_VERSIONS } from "../bridge/constants.js";
 import { originOf } from "../bridge/hostPolicy.js";
 import { JobLog, LOG_FILE_NAME } from "../bridge/jobLog.js";
+import { requestLocalNetworkPrompt } from "../bridge/localNetworkPrompt.js";
 import { hasLocalNetworkPermission, LocalNetworkSuspicion } from "../bridge/localNetworkSuspicion.js";
 import { frameRole } from "../bridge/navigationPolicy.js";
 import { PrintBridgeHandler } from "../bridge/printBridgeHandler.js";
@@ -52,6 +53,10 @@ if (!app.requestSingleInstanceLock()) {
 
     pos = new PosWindow(log);
     registerIpc(pos, handler, log);
+    // Fire-and-forget: TN3179's documented trigger for the macOS 15+ Local Network prompt, run at
+    // startup so it is answered before the first print instead of during it (§8.2, C3). Gated by
+    // platform inside the call itself, and never throws or delays the line below it.
+    void requestLocalNetworkPrompt(process.platform, os.release(), (entry) => log.append(entry));
     pos.openHome();
   });
 }

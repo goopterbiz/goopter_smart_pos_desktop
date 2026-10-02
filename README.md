@@ -99,9 +99,15 @@ The display is kept awake while the POS is open.
 | Links that open a new window go to the system browser | A kiosk has no tabs. |
 | `window.prompt()` returns nothing | Electron does not implement it. `alert` and `confirm` work. |
 | The macOS permission message (§8.2) is always a guess | macOS 15+ asks before the app may reach the LAN and offers no API to read the answer. After failures to several distinct printers in a row, the message points at System Settings > Privacy & Security > Local Network. Windows and Linux have no such permission and always show the plain message. |
+| The macOS Local Network prompt is requested at startup | On macOS 15+ the app connects a UDP socket to a multicast address before opening the POS (TN3179's documented trigger, no data sent), so the prompt is answered at launch rather than during the first print. Windows, Linux and macOS before 15 do nothing here. |
 
 ## Not verified
 
 Nothing has printed to a real printer. The macOS Local Network prompt has not been seen, and the
 §8.2 heuristic has not met a real denial. The §14 device checklist applies here too: print a receipt
 from each platform before relying on it.
+
+The startup prompt (C3) is unverified for the same reason: TN3179 tracks the permission by code
+signature, and it cannot be reset once granted or denied, so only an Apple-signed build run in a
+fresh macOS user account can show whether the prompt now appears at launch instead of at the first
+print.
