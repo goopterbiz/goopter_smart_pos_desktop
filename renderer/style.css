@@ -1,0 +1,47 @@
+:root { color-scheme: light; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; color: #1f2933; }
+body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f5f7fa; }
+main { width: min(560px, 90vw); background: #fff; border-radius: 12px; padding: 40px; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08); }
+h1 { margin: 0 0 12px; font-size: 26px; }
+p { line-height: 1.5; color: #52606d; }
+label { display: block; font-weight: 600; margin: 24px 0 8px; }
+.address { display: flex; align-items: center; gap: 6px; font-size: 20px; }
+input { flex: 1; font-size: 20px; padding: 12px; border: 1px solid #cbd2d9; border-radius: 8px; }
+button { font-size: 18px; padding: 12px 22px; border-radius: 8px; border: 1px solid #cbd2d9; background: #fff; cursor: pointer; }
+button.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+.actions { display: flex; gap: 12px; margin-top: 28px; }
+.error { color: #b91c1c; min-height: 1.5em; }
+code { word-break: break-all; }
+body.log { display: block; background: #fff; }
+body.log header, body.log footer { position: sticky; background: #fff; padding: 12px 20px; display: flex; gap: 12px; align-items: center; border-bottom: 1px solid #e4e7eb; }
+body.log header { top: 0; }
+body.log header { z-index: 1; }
+body.log footer { bottom: 0; border-top: 1px solid #e4e7eb; border-bottom: 0; }
+body.log header h1 { flex: 1; font-size: 20px; margin: 0; }
+body.log footer .where { font-size: 12px; color: #52606d; word-break: break-all; }
+/* The ⋯ menu (C6): opens down from the button's left edge. */
+body.log .more { position: relative; }
+body.log .more > button { width: 48px; padding-left: 0; padding-right: 0; letter-spacing: 1px; }
+body.log .more > button.open { background: #eef2ff; border-color: #2563eb; }
+body.log .menu { position: absolute; left: 0; top: calc(100% + 6px); width: 260px; background: #fff; border: 1px solid #cbd2d9; border-radius: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, .18); padding: 6px; z-index: 10; }
+body.log .menu .item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; border: 0; border-radius: 6px; background: none; color: inherit; font: inherit; font-size: 14px; text-align: left; }
+body.log .menu .item:hover, body.log .menu .item:focus-visible { background: #f1f5f9; outline: none; }
+body.log .menu .check { width: 16px; color: #2563eb; font-weight: 700; }
+body.log .menu .item[aria-checked="true"] .check::before { content: "\2713"; }
+body.log .menu .section { padding: 8px 12px 4px; font-size: 12px; font-weight: 600; color: #52606d; text-transform: uppercase; letter-spacing: .04em; }
+body.log .menu .note { padding: 0 12px 8px 38px; font-size: 12px; color: #52606d; line-height: 1.4; }
+body.log .menu hr { border: 0; border-top: 1px solid #e4e7eb; margin: 6px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 6px 20px 6px 0; border-bottom: 1px solid #f0f2f5; vertical-align: top; }
+th:first-child, td:first-child { padding-left: 20px; }
+td.outcome { word-break: break-word; }
+
+/* Store screen (C7): the card holds only the label, field, error line and button, centred. */
+body.store main { display: flex; flex-direction: column; align-items: center; }
+body.store label { margin: 0 0 8px; }
+/* https://, the input and .goopter.com share one border; the input itself has none. */
+body.store .address { box-sizing: border-box; font-size: 17px; height: 44px; border: 1px solid #cbd2d9; border-radius: 8px; padding: 0 12px; }
+body.store .address span { color: #52606d; }
+body.store .address:focus-within { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, .15); }
+body.store .address.invalid { border-color: #b91c1c; }
+body.store input { flex: none; border: none; padding: 0 1px; font-size: 17px; }
+body.store input:focus { outline: none; }

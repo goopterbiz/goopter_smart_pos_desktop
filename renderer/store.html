@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'">
+  <title>Goopter Smart POS</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="store">
+  <main>
+    <form id="form">
+      <label for="store">Store</label>
+      <div class="address" id="address">
+        <span>https://</span><input id="store" autocomplete="off" autocapitalize="off" spellcheck="false" autofocus placeholder="jadegarden"><span>.goopter.com</span>
+      </div>
+      <p class="error" id="error" role="alert"></p>
+      <div class="actions"><button class="primary" type="submit">Open</button></div>
+    </form>
+  </main>
+  <script src="store.js"></script>
+</body>
+</html>
