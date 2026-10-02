@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "description": "Desktop shell that hosts the Goopter Odoo POS and lets it print to store LAN printers.",
   "private": true,
+  "homepage": "https://www.goopter.com",
   "main": "dist/main/main.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -11,7 +12,8 @@
     "test": "vitest run",
     "test:e2e": "npm run build && playwright test",
     "start": "npm run build && electron .",
-    "dist": "npm run build && electron-builder"
+    "dist": "npm run build && electron-builder",
+    "deploy": "npm run build && APPLE_KEYCHAIN_PROFILE=goopter-notary electron-builder -mwl --publish always"
   },
   "devDependencies": {
     "@playwright/test": "1.63",
@@ -21,5 +23,8 @@
     "typescript": "^7.0.2",
     "vitest": "^5.0.3"
   },
-  "author": "Goopter"
+  "author": "Goopter",
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  }
 }

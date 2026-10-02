@@ -28,7 +28,9 @@ export type LogEvent =
   /** The window mode was chosen from the diagnostic log (C5). Outcome `kiosk` or `window`. */
   | "window_mode"
   /** The macOS 15+ Local Network prompt was requested at launch (C3). Outcome `requested`, or an error code. */
-  | "local_network";
+  | "local_network"
+  /** Auto-update progress. Outcome `available <version>`, `downloaded <version>`, or `failed <code>`. */
+  | "update";
 
 export type LogSink = (entry: LogEntry) => void | Promise<void>;
 

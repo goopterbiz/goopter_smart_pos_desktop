@@ -162,6 +162,12 @@ describe("JobLog", () => {
     expect(await new JobLog(dir, { now: () => base }).recent()).toEqual([windowMode, localNetwork]);
   });
 
+  it("update entries survive a relaunch", async () => {
+    const update: LogEntry = { timestamp: base, event: "update", origin: "app", outcome: "downloaded 1.0.1" };
+    await new JobLog(dir, { now: () => base }).append(update);
+    expect(await new JobLog(dir, { now: () => base }).recent()).toEqual([update]);
+  });
+
   it("an append with no file yet writes the line", async () => {
     const log = new JobLog(dir, { now: () => base });
     await log.append(entry(-1));

@@ -137,7 +137,7 @@ export class JobLog {
 
 const EVENTS: ReadonlySet<string> = new Set<LogEvent>([
   "launched", "bridge_call", "rejected", "queued", "connect", "wrote", "timeout", "failed", "page_error", "window_mode",
-  "local_network",
+  "local_network", "update",
 ]);
 
 function encode(entry: LogEntry): string {

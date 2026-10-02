@@ -1,6 +1,8 @@
 import os from "node:os";
 import path from "node:path";
 import { app, ipcMain, Menu, type IpcMainEvent, type IpcMainInvokeEvent, type WebFrameMain } from "electron";
+import { autoUpdater } from "electron-updater";
+import { startAutoUpdate } from "../bridge/autoUpdate.js";
 import { SUPPORTED_PROTOCOL_VERSIONS } from "../bridge/constants.js";
 import { originOf } from "../bridge/hostPolicy.js";
 import { JobLog, LOG_FILE_NAME } from "../bridge/jobLog.js";
@@ -58,6 +60,8 @@ if (!app.requestSingleInstanceLock()) {
     // platform inside the call itself, and never throws or delays the line below it.
     void requestLocalNetworkPrompt(process.platform, os.release(), (entry) => log.append(entry));
     pos.openHome();
+    // An unpackaged build has no app-update.yml to say where releases live.
+    if (app.isPackaged) startAutoUpdate(autoUpdater, (entry) => log.append(entry));
   });
 }
 

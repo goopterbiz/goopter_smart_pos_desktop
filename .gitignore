@@ -4,3 +4,5 @@ out/
 release/
 coverage/
 test-results/
+electron-builder.env
+*.p12

@@ -53,11 +53,37 @@ npm test                 # logic tests, including real loopback sockets
 npm run typecheck
 npm run test:e2e         # builds, then drives a real Electron window
 npm start                # build and run
-npm run dist             # unsigned installers into release/
+npm run dist             # installers into release/, macOS signed but not notarized
+npm run deploy           # macOS, Windows and Linux installers, published to a GitHub release draft
 ```
 
 `npm run dist` builds for the current platform. Pass `-- --mac`, `-- --win` or `-- --linux` to
-choose. Code signing, notarization and auto-update are not configured.
+choose. Packaging settings are in `electron-builder.cjs`.
+
+### Releases and auto-update
+
+A packaged app checks the GitHub repo in `release.env` (`GH_REPO_URL`) at launch and every 6
+hours, downloads a newer release in the background, and installs it the next time the app quits.
+It never restarts itself. Each check, download and failure is written to the diagnostic log as an
+`update` entry. The repo is baked into each build, so an installed app keeps polling the repo it
+was built with.
+
+One-time setup on the release Mac:
+
+1. The keychain holds the `Developer ID Application: Goopter Holdings Ltd. (SSFYC2Q9U6)` identity.
+2. `xcrun notarytool store-credentials goopter-notary --apple-id <apple-id> --team-id SSFYC2Q9U6`,
+   with an app-specific password from appleid.apple.com.
+3. `electron-builder.env` (gitignored, loaded by the electron-builder CLI) sets `GH_TOKEN`, a
+   GitHub token with Contents read/write on the release repo.
+
+Each release:
+
+1. Bump `version` in `package.json`. Installed apps only take a higher version.
+2. `npm run deploy`. It builds macOS (Apple Silicon and Intel, signed and notarized), Windows x64
+   and Linux, and uploads them to a draft GitHub release.
+3. Publish the draft on GitHub. Installed apps ignore drafts.
+
+Windows builds are unsigned, so SmartScreen warns on first install.
 
 ### Development against a local Odoo
 
