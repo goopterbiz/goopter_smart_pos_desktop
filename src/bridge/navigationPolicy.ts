@@ -4,8 +4,6 @@ import { isAllowed } from "./hostPolicy.js";
 export type Navigation =
   /** Load it here. */
   | "load"
-  /** Off-allowlist web page: the system browser, visibly not the POS and with no bridge. */
-  | "openInBrowser"
   /** A phone number, email or text a person clicked: hand it to the system. */
   | "handToSystem"
   /** Nothing loaded yet and the start is off-allowlist: a configuration error, shown as one. */
@@ -39,7 +37,8 @@ export function decideNavigation(n: {
 
   if (!n.isMainFrame) return isWeb || INERT_SCHEMES.has(scheme) ? "load" : "cancel";
   if (isAllowed(n.url, n.debugOrigin) || INERT_SCHEMES.has(scheme)) return "load";
-  if (isWeb) return n.hasLoadedPage ? "openInBrowser" : "refuseStart";
+  // An off-allowlist web page is never opened anywhere: not here, and not in the system browser.
+  if (isWeb) return n.hasLoadedPage ? "cancel" : "refuseStart";
   return SYSTEM_SCHEMES.has(scheme) && n.hasGesture ? "handToSystem" : "cancel";
 }
 

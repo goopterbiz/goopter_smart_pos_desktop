@@ -96,7 +96,7 @@ The display is kept awake while the POS is open.
 | No iPad layout fix (§6.5) or fit-to-window zoom (§6.4) | Odoo serves Chromium its desktop layout. |
 | Log opens with a shortcut, not a four-finger press | No touch screen is assumed. |
 | `tel:`, `mailto:` and `sms:` links are dropped | Electron does not report whether a person clicked, and the rule is to hand these to the system only on a click. |
-| Links that open a new window go to the system browser | A kiosk has no tabs. |
+| Nothing opens in the system browser | A kiosk has no tabs, and a till should not leave the POS. New-window requests are refused, so Odoo's kiosk launcher falls back to loading the kiosk in the app window. Navigation outside `goopter.com` is cancelled. |
 | `window.prompt()` returns nothing | Electron does not implement it. `alert` and `confirm` work. |
 | The macOS permission message (§8.2) is always a guess | macOS 15+ asks before the app may reach the LAN and offers no API to read the answer. After failures to several distinct printers in a row, the message points at System Settings > Privacy & Security > Local Network. Windows and Linux have no such permission and always show the plain message. |
 | The macOS Local Network prompt is requested at startup | On macOS 15+ the app connects a UDP socket to a multicast address before opening the POS (TN3179's documented trigger, no data sent), so the prompt is answered at launch rather than during the first print. Windows, Linux and macOS before 15 do nothing here. |
