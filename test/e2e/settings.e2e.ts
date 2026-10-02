@@ -199,6 +199,11 @@ test("a POS page has no shell API and cannot reach shell:set-kiosk", async () =>
   const posUrl = pos.url();
   const outcome = await app.evaluate(async ({ ipcMain }, url) => {
     const handler = (ipcMain as any)._invokeHandlers.get("shell:set-kiosk");
+    // An internal Electron API. Asserted here so a future Electron that renames or drops
+    // `_invokeHandlers` fails this test loudly instead of letting a missing handler pass by luck.
+    if (typeof handler !== "function") {
+      throw new Error("ipcMain._invokeHandlers has no shell:set-kiosk handler; the internal API may have changed");
+    }
     const event = { senderFrame: { url, parent: null } };
     try {
       await handler(event, true);

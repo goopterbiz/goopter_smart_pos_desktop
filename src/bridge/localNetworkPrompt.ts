@@ -8,7 +8,11 @@ const PROMPT_PORT = 5353;
 
 /** The slice of `dgram.Socket` this module touches, narrowed so a test can supply a fake. */
 export interface UdpSocket {
-  connect(port: number, address: string, callback: () => void): void;
+  /**
+   * `callback` carries an asynchronous failure (e.g. `ENOTFOUND`) as its own argument; dgram emits
+   * no 'error' event for it. https://nodejs.org/api/dgram.html#socketconnectport-address-callback
+   */
+  connect(port: number, address: string, callback: (error?: NodeJS.ErrnoException) => void): void;
   close(callback?: () => void): void;
   once(event: "error", listener: (error: NodeJS.ErrnoException) => void): void;
 }
@@ -46,8 +50,9 @@ export async function requestLocalNetworkPrompt(
     try {
       const socket = createSocket();
 
-      // Fires for a failure the connect itself reports asynchronously, such as no route to the
-      // multicast group. Attached before connect() so it cannot be missed.
+      // Covers a failure that arrives as an 'error' event rather than through the connect
+      // callback, such as one during the socket's implicit bind. Attached before connect() so it
+      // cannot be missed.
       socket.once("error", (error) => {
         finish(errorCode(error));
         try {
@@ -57,11 +62,22 @@ export async function requestLocalNetworkPrompt(
         }
       });
 
-      socket.connect(PROMPT_PORT, PROMPT_HOST, () => {
+      // An asynchronous connect failure (e.g. ENOTFOUND) arrives here, as this callback's own
+      // argument, not as an 'error' event.
+      socket.connect(PROMPT_PORT, PROMPT_HOST, (error) => {
+        if (error) {
+          finish(errorCode(error));
+          try {
+            socket.close();
+          } catch {
+            // Already gone.
+          }
+          return;
+        }
         try {
           socket.close(() => finish("requested"));
-        } catch (error) {
-          finish(errorCode(error));
+        } catch (closeError) {
+          finish(errorCode(closeError));
         }
       });
     } catch (error) {

@@ -153,6 +153,15 @@ describe("JobLog", () => {
     expect(await log.recent()).toEqual([entry(-1), entry(-2), entry(-3)]);
   });
 
+  it("local_network and window_mode entries survive a relaunch", async () => {
+    const localNetwork: LogEntry = { timestamp: base, event: "local_network", origin: "app", outcome: "requested" };
+    const windowMode: LogEntry = { timestamp: new Date(base.getTime() + 1000), event: "window_mode", origin: "app", outcome: "window" };
+    const first = new JobLog(dir, { now: () => base });
+    await first.append(localNetwork);
+    await first.append(windowMode);
+    expect(await new JobLog(dir, { now: () => base }).recent()).toEqual([windowMode, localNetwork]);
+  });
+
   it("an append with no file yet writes the line", async () => {
     const log = new JobLog(dir, { now: () => base });
     await log.append(entry(-1));

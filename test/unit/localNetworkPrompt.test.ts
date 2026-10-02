@@ -2,7 +2,15 @@ import { describe, expect, it } from "vitest";
 import { requestLocalNetworkPrompt, type UdpSocket, type UdpSocketFactory } from "../../src/bridge/localNetworkPrompt.js";
 import { RecordingLog } from "./support.js";
 
-/** A fake standing in for the one `dgram.Socket` slice this module touches. */
+/**
+ * A fake standing in for the one `dgram.Socket` slice this module touches.
+ *
+ * Real dgram hands an asynchronous connect failure (e.g. ENOTFOUND) to the connect callback as its
+ * own argument and emits no 'error' event for it; verified against node:dgram directly. The fake
+ * must reproduce that split, or a bug that ignores the callback's error would pass here while
+ * failing for real (F1/F2). `errorEvent` models a failure that does arrive as an 'error' event,
+ * such as one during the socket's implicit bind.
+ */
 class FakeSocket implements UdpSocket {
   connectCalls: [number, string][] = [];
   closed = false;
@@ -11,7 +19,8 @@ class FakeSocket implements UdpSocket {
   constructor(
     private readonly behaviour:
       | { kind: "succeed" }
-      | { kind: "errorOnConnect"; error: NodeJS.ErrnoException }
+      | { kind: "connectCallbackError"; error: NodeJS.ErrnoException }
+      | { kind: "errorEvent"; error: NodeJS.ErrnoException }
       | { kind: "throwOnConnect"; error: NodeJS.ErrnoException }
       | { kind: "throwOnClose"; error: NodeJS.ErrnoException } = { kind: "succeed" },
   ) {}
@@ -22,14 +31,19 @@ class FakeSocket implements UdpSocket {
     if (event === "error") this.errorListener = listener;
   }
 
-  connect(port: number, address: string, callback: () => void): void {
+  connect(port: number, address: string, callback: (error?: NodeJS.ErrnoException) => void): void {
     this.connectCalls.push([port, address]);
-    if (this.behaviour.kind === "throwOnConnect") throw this.behaviour.error;
-    if (this.behaviour.kind === "errorOnConnect") {
-      queueMicrotask(() => this.errorListener?.(this.behaviour.kind === "errorOnConnect" ? this.behaviour.error : (undefined as never)));
+    const behaviour = this.behaviour;
+    if (behaviour.kind === "throwOnConnect") throw behaviour.error;
+    if (behaviour.kind === "connectCallbackError") {
+      queueMicrotask(() => callback(behaviour.error));
       return;
     }
-    queueMicrotask(callback);
+    if (behaviour.kind === "errorEvent") {
+      queueMicrotask(() => this.errorListener?.(behaviour.error));
+      return;
+    }
+    queueMicrotask(() => callback());
   }
 
   close(callback?: () => void): void {
@@ -71,14 +85,26 @@ describe("requestLocalNetworkPrompt", () => {
     ]);
   });
 
-  it("logs the error code when the connect fails, and still closes the socket", async () => {
-    const socket = new FakeSocket({ kind: "errorOnConnect", error: errnoError("EPERM") });
+  it("logs the error code when the connect callback reports a failure, and still closes the socket", async () => {
+    // F1 regression: dgram reports an async connect failure through the callback's own argument,
+    // not an 'error' event. A fix that only listens for 'error' would log "requested" here.
+    const socket = new FakeSocket({ kind: "connectCallbackError", error: errnoError("ENOTFOUND") });
     const log = new RecordingLog();
 
     await requestLocalNetworkPrompt("darwin", "24.0.0", log.append, () => socket);
 
     expect(socket.closed).toBe(true);
-    expect(log.entries).toEqual([expect.objectContaining({ event: "local_network", outcome: "EPERM" })]);
+    expect(log.entries).toEqual([expect.objectContaining({ event: "local_network", outcome: "ENOTFOUND" })]);
+  });
+
+  it("logs the error code when an 'error' event arrives instead (e.g. a bind failure), and still closes", async () => {
+    const socket = new FakeSocket({ kind: "errorEvent", error: errnoError("EADDRNOTAVAIL") });
+    const log = new RecordingLog();
+
+    await requestLocalNetworkPrompt("darwin", "24.0.0", log.append, () => socket);
+
+    expect(socket.closed).toBe(true);
+    expect(log.entries).toEqual([expect.objectContaining({ event: "local_network", outcome: "EADDRNOTAVAIL" })]);
   });
 
   it("never throws when the socket factory itself throws", async () => {
@@ -108,7 +134,7 @@ describe("requestLocalNetworkPrompt", () => {
   });
 
   it("falls back to a generic code when the failure carries none", async () => {
-    const socket = new FakeSocket({ kind: "errorOnConnect", error: new Error("no code") as NodeJS.ErrnoException });
+    const socket = new FakeSocket({ kind: "connectCallbackError", error: new Error("no code") as NodeJS.ErrnoException });
     const log = new RecordingLog();
 
     await requestLocalNetworkPrompt("darwin", "24.0.0", log.append, () => socket);
