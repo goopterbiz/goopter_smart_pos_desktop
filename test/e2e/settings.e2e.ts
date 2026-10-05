@@ -53,26 +53,18 @@ const posIsKiosk = (target: ElectronApplication, page: Page) =>
  */
 const posScreen = (target: ElectronApplication, page: Page) =>
   target.browserWindow(page).then((win) => win.evaluate((w) => ({ fullScreen: w.isFullScreen() })));
-const logVisible = (target: ElectronApplication) =>
-  target.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().some((w) => w.getParentWindow() !== null && w.isVisible()));
+/** Whether the log, a modal child that blocks input to the POS window, still exists. */
+const logOpen = (target: ElectronApplication) =>
+  target.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().some((w) => w.getParentWindow() !== null));
+const posEnabled = (target: ElectronApplication, page: Page) =>
+  target.browserWindow(page).then((win) => win.evaluate((w) => w.isEnabled()));
 
-/** Listeners a mode change may leave behind on the POS window and the log. */
-const listenerCounts = (target: ElectronApplication) =>
-  target.evaluate(({ BrowserWindow }) => {
-    const windows = BrowserWindow.getAllWindows();
-    const posWindow = windows.find((w) => w.getParentWindow() === null)!;
-    const logWindow = windows.find((w) => w.getParentWindow() !== null);
-    return {
-      enter: posWindow.listenerCount("enter-full-screen"),
-      leave: posWindow.listenerCount("leave-full-screen"),
-      hide: logWindow?.listenerCount("hide") ?? null,
-    };
-  });
-
+/** Choosing a mode closes the log, so the POS takes input again in the new mode. */
 async function chooseMode(logPage: Page, id: "#mode-kiosk" | "#mode-window"): Promise<void> {
+  const closed = logPage.waitForEvent("close");
   await logPage.click("#more");
   await logPage.click(id);
-  await expect(logPage.locator("#menu")).toBeHidden();
+  await closed;
 }
 
 /**
@@ -170,15 +162,15 @@ test("shell:set-kiosk refuses anything but a boolean", async () => {
   expect(await posIsKiosk(app, pos)).toBe(true);
 });
 
-test("choosing Window applies at once, saves {\"kiosk\":false}, logs it, and moves the tick", async () => {
-  await log.click("#more");
-  await log.click("#mode-window");
-  await expect(log.locator("#menu")).toBeHidden();
+test("choosing Window closes the log, applies at once, saves {\"kiosk\":false}, logs it, and moves the tick", async () => {
+  await chooseMode(log, "#mode-window");
   await expect.poll(() => posIsKiosk(app, pos)).toBe(false);
   if (process.platform === "darwin") await expect.poll(() => posScreen(app, pos)).toEqual({ fullScreen: false });
-  await expect.poll(() => logVisible(app)).toBe(true);
+  expect(await logOpen(app)).toBe(false);
+  expect(await posEnabled(app, pos)).toBe(true);
   expect(JSON.parse(readFileSync(settingsFile(), "utf8"))).toEqual({ kiosk: false });
   await expect.poll(() => logEvents().some((e) => e.event === "window_mode" && e.outcome === "window")).toBe(true);
+  log = await openLog(app);
   await log.click("#more");
   await expect(log.locator("#mode-window")).toHaveAttribute("aria-checked", "true");
   await expect(log.locator("#mode-kiosk")).toHaveAttribute("aria-checked", "false");
@@ -217,7 +209,7 @@ test("a POS page has no shell API and cannot reach shell:set-kiosk", async () =>
   expect(await posIsKiosk(app, pos)).toBe(false);
 });
 
-test("a relaunch opens windowed, and choosing Kiosk restores kiosk mode", async () => {
+test("a relaunch opens windowed, and choosing Kiosk closes the log and restores kiosk mode", async () => {
   await app.close();
   ({ app, pos } = await launch());
   expect(await posIsKiosk(app, pos)).toBe(false);
@@ -227,79 +219,34 @@ test("a relaunch opens windowed, and choosing Kiosk restores kiosk mode", async 
   await expect(log.locator("#entries tr", { hasText: "window_mode" })).toHaveCount(1);
   await log.click("#more");
   await expect(log.locator("#mode-window")).toHaveAttribute("aria-checked", "true");
-  await log.click("#mode-kiosk");
-  await expect(log.locator("#menu")).toBeHidden();
+  await log.click("#more");
+  await chooseMode(log, "#mode-kiosk");
   await expect.poll(() => posIsKiosk(app, pos)).toBe(true);
   if (process.platform === "darwin") await expect.poll(() => posScreen(app, pos)).toEqual({ fullScreen: true });
-  await expect.poll(() => logVisible(app)).toBe(true);
+  // On Linux a full screen window can cover the log, and an open modal log leaves the POS ignoring input.
+  expect(await logOpen(app)).toBe(false);
+  expect(await posEnabled(app, pos)).toBe(true);
   expect(JSON.parse(readFileSync(settingsFile(), "utf8"))).toEqual({ kiosk: true });
   await expect.poll(() => logEvents().some((e) => e.event === "window_mode" && e.outcome === "kiosk")).toBe(true);
 });
 
-test("a mode still applies when the log's hide event never arrives (macOS sheet)", async () => {
-  test.skip(process.platform !== "darwin", "The log is a sheet only on macOS.");
-  const before = await listenerCounts(app);
-  // The sheet still goes away; only the event that reports it is lost.
+test("a mode still applies when the log refuses to close", async () => {
+  log = await openLog(app);
   await app.evaluate(({ BrowserWindow }) => {
     const logWindow = BrowserWindow.getAllWindows().find((w) => w.getParentWindow() !== null)! as any;
-    const emit = logWindow.emit;
-    logWindow.emit = function (event: string, ...args: unknown[]) {
-      return event === "hide" ? false : emit.call(this, event, ...args);
-    };
+    logWindow.refuseClose = (event: Electron.Event) => event.preventDefault();
+    logWindow.on("close", logWindow.refuseClose);
   });
-  await chooseMode(log, "#mode-window");
+  await log.click("#more");
+  await log.click("#mode-window");
   await expect.poll(() => posIsKiosk(app, pos), { timeout: 5_000 }).toBe(false);
-  await expect.poll(() => posScreen(app, pos), { timeout: 5_000 }).toEqual({ fullScreen: false });
-  await expect.poll(() => logVisible(app), { timeout: 5_000 }).toBe(true);
-  await expect.poll(() => listenerCounts(app)).toEqual(before);
-});
-
-test("a lost full screen event still brings the log back and leaves no listener (macOS sheet)", async () => {
-  test.skip(process.platform !== "darwin", "The log is a sheet only on macOS.");
-  const before = await listenerCounts(app);
+  expect(JSON.parse(readFileSync(settingsFile(), "utf8"))).toEqual({ kiosk: false });
+  // Let it close again, and leave the till in kiosk mode as it started.
   await app.evaluate(({ BrowserWindow }) => {
-    const posWindow = BrowserWindow.getAllWindows().find((w) => w.getParentWindow() === null)! as any;
-    posWindow.realEmit = posWindow.emit;
-    posWindow.emit = function (event: string, ...args: unknown[]) {
-      return event === "enter-full-screen" ? false : posWindow.realEmit.call(this, event, ...args);
-    };
+    const logWindow = BrowserWindow.getAllWindows().find((w) => w.getParentWindow() !== null)! as any;
+    logWindow.removeListener("close", logWindow.refuseClose);
   });
-  await chooseMode(log, "#mode-kiosk");
-  await expect.poll(() => posIsKiosk(app, pos), { timeout: 5_000 }).toBe(true);
-  await expect.poll(() => logVisible(app), { timeout: 6_000 }).toBe(true);
-  expect(await listenerCounts(app)).toEqual(before);
-  await app.evaluate(({ BrowserWindow }) => {
-    const posWindow = BrowserWindow.getAllWindows().find((w) => w.getParentWindow() === null)! as any;
-    posWindow.emit = posWindow.realEmit;
-  });
-  // Back to an ordinary window for the next test.
-  await chooseMode(log, "#mode-window");
-  await expect.poll(() => posScreen(app, pos), { timeout: 5_000 }).toEqual({ fullScreen: false });
-  await expect.poll(() => logVisible(app), { timeout: 5_000 }).toBe(true);
-});
-
-test("leaving kiosk into the full screen it started from shows the log at once (macOS sheet)", async () => {
-  test.skip(process.platform !== "darwin", "The log is a sheet only on macOS.");
-  // Full screen as the green button makes it, entered with no sheet attached.
-  const closed = log.waitForEvent("close");
-  await pressEscapeInLog(app);
-  await closed;
-  await app.evaluate(({ BrowserWindow }) => new Promise<void>((resolve) => {
-    const posWindow = BrowserWindow.getAllWindows()[0]!;
-    posWindow.once("enter-full-screen", () => resolve());
-    posWindow.setFullScreen(true);
-  }));
-  log = await openLog(app);
-  const before = await listenerCounts(app);
-
   await chooseMode(log, "#mode-kiosk");
   await expect.poll(() => posIsKiosk(app, pos)).toBe(true);
-  await chooseMode(log, "#mode-window");
-  await expect.poll(() => posIsKiosk(app, pos)).toBe(false);
-  // Electron returns to the full screen the window had before kiosk, so there is no transition to
-  // wait for, and the log must not sit hidden until a fallback.
-  await expect.poll(() => logVisible(app), { timeout: 1_000 }).toBe(true);
-  expect(await posScreen(app, pos)).toEqual({ fullScreen: true });
-  await log.waitForTimeout(3_500);
-  expect(await listenerCounts(app)).toEqual(before);
+  expect(await logOpen(app)).toBe(false);
 });
