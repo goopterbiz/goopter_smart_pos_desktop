@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readEnvelope, successResponse, failureResponse } from "../../src/bridge/envelope.js";
 import { JobFailure, MalformedCall } from "../../src/bridge/jobFailure.js";
-import { envelope, PAYLOAD } from "./support.js";
+import { envelope, namedEnvelope, PAYLOAD } from "./support.js";
 
 /** SPEC §3.2, §4.1, Android EnvelopeTests E1-E8, W1, W2. */
 describe("EnvelopeReader", () => {
@@ -17,9 +17,40 @@ describe("EnvelopeReader", () => {
 
   it("E1 accepts a valid v2 envelope", () => {
     const parsed = readEnvelope(envelope());
-    expect(parsed.destination.host).toBe("192.168.1.50");
-    expect(parsed.destination.port).toBe(9100);
+    expect(parsed.destination?.host).toBe("192.168.1.50");
+    expect(parsed.destination?.port).toBe(9100);
+    expect(parsed.printerName).toBeUndefined();
     expect(parsed.data).toEqual(PAYLOAD);
+  });
+
+  describe("installed printer", () => {
+    it("a name selects an installed printer instead of an address", () => {
+      const parsed = readEnvelope(namedEnvelope());
+      expect(parsed.printerName).toBe("EPSON_TM_T20III");
+      expect(parsed.destination).toBeUndefined();
+      expect(parsed.data).toEqual(PAYLOAD);
+    });
+
+    it("an empty name is refused before the data is read", () => {
+      expect(refusal({ ...namedEnvelope({ name: "" }), data_base64: "" })).toEqual(JobFailure.missingPrinterName());
+    });
+
+    it("a name and an address together are refused before the data is read", () => {
+      expect(refusal({ ...namedEnvelope({ name: "EPSON", host: "192.168.1.50", port: 9100 }), data_base64: "" }))
+        .toEqual(JobFailure.ambiguousPrinter());
+      expect(refusal(namedEnvelope({ name: "EPSON", host: "" }))).toEqual(JobFailure.ambiguousPrinter());
+    });
+
+    it("a name that is not a string is a malformed call", () => {
+      for (const name of [null, 7, ["EPSON"], { name: "EPSON" }]) {
+        expect(() => readEnvelope(namedEnvelope({ name }))).toThrow(MalformedCall);
+      }
+    });
+
+    it("still checks the version first and the data last", () => {
+      expect(refusal({ ...namedEnvelope(), protocol_version: 3 })).toEqual(JobFailure.unsupportedVersion("3"));
+      expect(refusal({ ...namedEnvelope(), data_base64: "" })).toEqual(JobFailure.noData());
+    });
   });
 
   it("E2 a non-object body is a malformed call, not a JobFailure", () => {
@@ -45,7 +76,7 @@ describe("EnvelopeReader", () => {
   });
 
   it("E6 ignores unrecognised keys", () => {
-    expect(readEnvelope({ ...envelope(), invented_later: ["anything"] }).destination.port).toBe(9100);
+    expect(readEnvelope({ ...envelope(), invented_later: ["anything"] }).destination?.port).toBe(9100);
   });
 
   it("E7 refuses missing, empty and undecodable data", () => {

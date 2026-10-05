@@ -35,6 +35,8 @@ module.exports = {
   },
   win: {
     target: [{ target: "nsis", arch: ["x64"] }],
+    // Writes raw bytes to printers installed on the till (USB_PRINTING_SPEC). Built by build:rawprint.
+    extraResources: [{ from: "dist/native/rawprint.exe", to: "rawprint.exe" }],
     // Unsigned. Without this, Windows falls back to CSC_LINK, which is the Apple certificate.
     cscLink: "",
   },

@@ -1,3 +1,4 @@
+import type { InstalledPrinter } from "./installedPrinter.js";
 import { JobFailure } from "./jobFailure.js";
 
 /**
@@ -54,5 +55,11 @@ export class PhaseTracker {
     if (this.connectedAt !== null) return JobFailure.writeStalled(target);
     if (this.attempted) return JobFailure.unreachable(target);
     return JobFailure.queueTimedOut(target);
+  }
+
+  /** The same, for a job handed to the OS print queue: there is no connection, only the spooler. */
+  spoolerExpiry(printer: InstalledPrinter): JobFailure {
+    if (this.attempted) return JobFailure.spoolerTimedOut(printer.name);
+    return JobFailure.queueTimedOut(printer.toString());
   }
 }

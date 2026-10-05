@@ -15,6 +15,11 @@ export class Destination {
     return `${this.host}:${this.port}`;
   }
 
+  /** The printer's lock in the gate. */
+  get gateKey(): string {
+    return this.toString();
+  }
+
   /** @internal */
   static make(host: string, port: number): Destination {
     return new Destination(host, port);

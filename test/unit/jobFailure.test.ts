@@ -21,6 +21,26 @@ describe("JobFailure", () => {
     for (const [failure, message] of cases) expect(failure.message).toBe(message);
   });
 
+  it("names an installed printer by name", () => {
+    const cases: [JobFailure, string][] = [
+      [JobFailure.ambiguousPrinter(), "The printer setting has both an address and a name. Check the printer in Odoo."],
+      [JobFailure.missingPrinterName(), "No printer name was supplied. Check the printer name in Odoo."],
+      [JobFailure.printerNotInstalled("EPSON"), 'No printer named "EPSON" is installed on this computer. Check the printer name in Odoo.'],
+      [JobFailure.spoolerRefused("EPSON"), `This computer's print system refused the job for "EPSON". Check the printer in system settings.`],
+      [JobFailure.spoolerTimedOut("EPSON"), `This computer's print system did not take the job for "EPSON" in time. Check the printer in system settings.`],
+    ];
+    for (const [failure, message] of cases) expect(failure.message).toBe(message);
+    expect(JobFailure.printerNotInstalled("EPSON").target).toBe("EPSON");
+    expect(JobFailure.spoolerRefused("EPSON").target).toBe("EPSON");
+    expect(JobFailure.missingPrinterName().target).toBeUndefined();
+    expect(JobFailure.missingPrinterName().outcomeKey).toBe("missing_printer_name");
+    expect(JobFailure.missingPrinterName().isRejection).toBe(true);
+    expect(JobFailure.printerNotInstalled("EPSON").isRejection).toBe(true);
+    expect(JobFailure.ambiguousPrinter().isRejection).toBe(true);
+    expect(JobFailure.spoolerTimedOut("EPSON").isTimeout).toBe(true);
+    expect(JobFailure.spoolerRefused("EPSON").isTimeout).toBe(false);
+  });
+
   it("the macOS permission hint names the Local Network setting", () => {
     expect(JobFailure.unreachableMaybePermission(t).message).toBe(
       `Could not reach the printer at ${t}. Local network access may be turned off for Goopter Smart POS — ` +

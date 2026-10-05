@@ -1,5 +1,6 @@
 import { MAX_IN_FLIGHT } from "./constants.js";
 import type { Destination } from "./destination.js";
+import type { InstalledPrinter } from "./installedPrinter.js";
 
 /** A FIFO counting semaphore whose waiters leave the queue when their signal aborts. */
 class Semaphore {
@@ -55,8 +56,8 @@ export class PrinterGate {
     this.slots = new Semaphore(maxInFlight);
   }
 
-  async run<T>(destination: Destination, signal: AbortSignal, body: () => Promise<T>): Promise<T> {
-    const lock = this.lockFor(destination.toString());
+  async run<T>(printer: Destination | InstalledPrinter, signal: AbortSignal, body: () => Promise<T>): Promise<T> {
+    const lock = this.lockFor(printer.gateKey);
     await lock.acquire(signal);
     try {
       await this.slots.acquire(signal);

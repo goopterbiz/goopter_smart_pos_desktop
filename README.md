@@ -25,6 +25,16 @@ if (window.GoopterPOS?.protocolVersions?.includes(2)) {
 `window.goopterPrinter` (Bluetooth) is not provided. A page that feature-detects it treats this app
 as TCP only.
 
+This app alone also prints to printers installed on the till, such as USB receipt printers, and says
+so with `GoopterPOS.usbPrinting === true`. The printer is named exactly as the OS knows it, and a
+name is required: there is no default printer. The bytes go to the OS print queue unchanged:
+`lp -o raw` on macOS and Linux, the bundled `rawprint.exe` on Windows. See
+`docs/USB_PRINTING_SPEC.md`.
+
+```js
+await window.GoopterPOS.print({ protocol_version: 2, printer: { name: "EPSON_TM_T20III" }, data_base64: "G0A..." });
+```
+
 The same rules as the other two apps hold:
 
 - The bridge exists only in the main frame of an `https` page on `goopter.com` or a subdomain of it.
@@ -37,7 +47,8 @@ The same rules as the other two apps hold:
 
 | Path | Contents | Tested by |
 |---|---|---|
-| `src/bridge/` | Envelope, destination policy, printer gate, deadline, socket transport, job log, store name, host and navigation policy. Imports nothing from Electron. | `npm test` |
+| `src/bridge/` | Envelope, destination policy, printer gate, deadline, socket and spooler transports, installed-printer check, job log, store name, host and navigation policy. Imports nothing from Electron. | `npm test` |
+| `native/rawprint/` | Windows helper that writes stdin to a printer as one RAW spooler job | Device only |
 | `src/main/` | Kiosk window, IPC, navigation handling, store persistence | `npm run test:e2e` |
 | `src/preload/preload.ts` | Exposes `GoopterPOS` or the shell API, as the main process decides per frame | `npm run test:e2e` |
 | `renderer/` | Store entry, load failure and diagnostic log screens | `npm run test:e2e` |
@@ -75,6 +86,7 @@ One-time setup on the release Mac:
    with an app-specific password from appleid.apple.com.
 3. `electron-builder.env` (gitignored, loaded by the electron-builder CLI) sets `GH_TOKEN`, a
    GitHub token with Contents read/write on the release repo.
+4. `brew install mingw-w64`, which `npm run dist` and `npm run deploy` use to build `rawprint.exe`.
 
 Each release:
 
@@ -118,6 +130,7 @@ The display is kept awake while the POS is open.
 | | Why |
 |---|---|
 | No Bluetooth | Out of scope for this app. |
+| Printers installed on the till (`printer: { name }`, `usbPrinting`) | Tills are computers with USB receipt printers. iOS and Android do not have the property and refuse a job without a host. |
 | No background assertion (§10) | Desktop apps are not suspended. |
 | No iPad layout fix (§6.5) or fit-to-window zoom (§6.4) | Odoo serves Chromium its desktop layout. |
 | Log opens with a shortcut, not a four-finger press | No touch screen is assumed. |
@@ -132,6 +145,9 @@ The display is kept awake while the POS is open.
 Nothing has printed to a real printer. The macOS Local Network prompt has not been seen, and the
 §8.2 heuristic has not met a real denial. The §14 device checklist applies here too: print a receipt
 from each platform before relying on it.
+
+No installed printer has been printed to. `lp -o raw` and `rawprint.exe` are proven only against
+fake spoolers, and `rawprint.exe` has never run on Windows.
 
 The startup prompt (C3) is unverified for the same reason: TN3179 tracks the permission by code
 signature, and it cannot be reset once granted or denied, so only an Apple-signed build run in a

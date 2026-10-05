@@ -12,8 +12,9 @@
     "test": "vitest run",
     "test:e2e": "npm run build && playwright test",
     "start": "npm run build && electron .",
-    "dist": "npm run build && electron-builder",
-    "deploy": "npm run build && APPLE_KEYCHAIN_PROFILE=goopter-notary electron-builder -mwl --publish always"
+    "build:rawprint": "mkdir -p dist/native && x86_64-w64-mingw32-gcc -O2 -s -municode -Wall -o dist/native/rawprint.exe native/rawprint/rawprint.c -lwinspool",
+    "dist": "npm run build && npm run build:rawprint && electron-builder",
+    "deploy": "npm run build && npm run build:rawprint && APPLE_KEYCHAIN_PROFILE=goopter-notary electron-builder -mwl --publish always"
   },
   "devDependencies": {
     "@playwright/test": "1.63",

@@ -2,11 +2,14 @@ import { SUPPORTED_PROTOCOL_VERSIONS } from "./constants.js";
 import { Destination, validateDestination } from "./destination.js";
 import { JobFailure, MalformedCall } from "./jobFailure.js";
 
-/** A print job that has passed every check in §4.1 steps 1-4. */
-export interface PrintEnvelope {
-  readonly destination: Destination;
-  readonly data: Uint8Array;
-}
+/**
+ * A print job that has passed every check in §4.1 steps 1-4. It names either a network printer or,
+ * on desktop, a printer installed on the till (USB_PRINTING_SPEC), whose name is checked later
+ * against the OS's list.
+ */
+export type PrintEnvelope =
+  | { readonly destination: Destination; readonly printerName?: undefined; readonly data: Uint8Array }
+  | { readonly destination?: undefined; readonly printerName: string; readonly data: Uint8Array };
 
 /**
  * The response handed back to the page (SPEC §3.3). Absent fields are omitted, not sent as null,
@@ -35,18 +38,29 @@ export function readEnvelope(body: unknown): PrintEnvelope {
     throw JobFailure.unsupportedVersion(version);
   }
 
-  // Step 3: destination.
+  // Step 3: destination. A `name` key selects an installed printer.
   const printer = isRecord(body.printer) ? body.printer : undefined;
+  if (printer !== undefined && "name" in printer) {
+    if ("host" in printer) throw JobFailure.ambiguousPrinter();
+    if (typeof printer.name !== "string") throw new MalformedCall();
+    if (printer.name === "") throw JobFailure.missingPrinterName();
+    return { printerName: printer.name, data: readData(body) };
+  }
   const host = typeof printer?.host === "string" ? printer.host : null;
   const destination = validateDestination(host, numberText(printer?.port));
 
-  // Step 4: payload. Strict base64: a string with stray characters is a page bug dressed as data,
-  // and printing a partial decode would put garbage on paper.
+  return { destination, data: readData(body) };
+}
+
+/**
+ * Step 4: payload. Strict base64: a string with stray characters is a page bug dressed as data,
+ * and printing a partial decode would put garbage on paper.
+ */
+function readData(body: Record<string, unknown>): Uint8Array {
   const encoded = body.data_base64;
   const data = typeof encoded === "string" ? decodeBase64Strict(encoded) : null;
   if (data === null || data.length === 0) throw JobFailure.noData();
-
-  return { destination, data };
+  return data;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

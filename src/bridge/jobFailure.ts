@@ -24,7 +24,12 @@ export type JobFailureKind =
   | "connectionRefused"
   | "unreachable"
   | "unreachableMaybePermission"
-  | "writeStalled";
+  | "writeStalled"
+  | "ambiguousPrinter"
+  | "missingPrinterName"
+  | "printerNotInstalled"
+  | "spoolerRefused"
+  | "spoolerTimedOut";
 
 /**
  * Everything that can go wrong with a job the bridge understood (SPEC §5).
@@ -148,11 +153,59 @@ export class JobFailure extends Error {
 
   /** Decided without touching the network (§4.1 steps 2-4). */
   get isRejection(): boolean {
-    return ["unsupportedVersion", "missingHost", "hostNotLocal", "portNotAllowed", "noData"].includes(this.kind);
+    return ["unsupportedVersion", "missingHost", "hostNotLocal", "portNotAllowed", "noData", "ambiguousPrinter",
+      "missingPrinterName", "printerNotInstalled"].includes(this.kind);
   }
 
   /** Logged as `timeout` rather than `failed`. */
   get isTimeout(): boolean {
-    return ["unreachable", "unreachableMaybePermission", "writeStalled", "queueTimedOut"].includes(this.kind);
+    return ["unreachable", "unreachableMaybePermission", "writeStalled", "queueTimedOut", "spoolerTimedOut"].includes(this.kind);
+  }
+
+  // Printers installed on the till (USB_PRINTING_SPEC). Desktop only.
+
+  static ambiguousPrinter(): JobFailure {
+    return new JobFailure(
+      "ambiguousPrinter",
+      "The printer setting has both an address and a name. Check the printer in Odoo.",
+      "ambiguous_printer",
+    );
+  }
+
+  static missingPrinterName(): JobFailure {
+    return new JobFailure(
+      "missingPrinterName",
+      "No printer name was supplied. Check the printer name in Odoo.",
+      "missing_printer_name",
+    );
+  }
+
+  static printerNotInstalled(name: string): JobFailure {
+    return new JobFailure(
+      "printerNotInstalled",
+      `No printer named "${name}" is installed on this computer. Check the printer name in Odoo.`,
+      "printer_not_installed",
+      name,
+    );
+  }
+
+  /** The spooler exited with an error, or could not be started. */
+  static spoolerRefused(name: string): JobFailure {
+    return new JobFailure(
+      "spoolerRefused",
+      `This computer's print system refused the job for "${name}". Check the printer in system settings.`,
+      "spooler_refused",
+      name,
+    );
+  }
+
+  /** The deadline expired after the spooler was started. */
+  static spoolerTimedOut(name: string): JobFailure {
+    return new JobFailure(
+      "spoolerTimedOut",
+      `This computer's print system did not take the job for "${name}" in time. Check the printer in system settings.`,
+      "spooler_timed_out",
+      name,
+    );
   }
 }

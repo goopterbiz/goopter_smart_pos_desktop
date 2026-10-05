@@ -16,6 +16,12 @@ export const JOB_DEADLINE_MS = 12_000;
 /** A printer on the same subnet answers in milliseconds; five seconds is a printer that is not there. */
 export const CONNECT_TIMEOUT_MS = 5_000;
 
+/**
+ * How long the OS gets to list its printers before a named job is checked against an empty list.
+ * Spent before the job deadline starts, so with it a job still answers inside the client's 15 s.
+ */
+export const PRINTER_LIST_TIMEOUT_MS = 2_000;
+
 /** Concurrent jobs across all printers. */
 export const MAX_IN_FLIGHT = 4;
 

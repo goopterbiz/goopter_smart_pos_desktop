@@ -8,12 +8,12 @@ import { contextBridge, ipcRenderer } from "electron";
  * nothing of its own, so it holds no policy that could drift from the main process.
  *
  * - An allowlisted POS page gets `window.GoopterPOS`, the same shape the iOS and Android apps give
- *   it (SPEC §3.1). No `window.goopterPrinter`: this app has no Bluetooth.
+ *   it (SPEC §3.1), plus `usbPrinting`. No `window.goopterPrinter`: this app has no Bluetooth.
  * - The app's own screens get `window.goopterShell`.
  * - Anything else gets nothing.
  */
 type Role =
-  | { role: "pos"; version: string; protocolVersions: number[] }
+  | { role: "pos"; version: string; protocolVersions: number[]; usbPrinting: boolean }
   | { role: "shell" }
   | { role: null };
 
@@ -27,6 +27,8 @@ if (role.role === "pos") {
   contextBridge.exposeInMainWorld("GoopterPOS", {
     version: role.version,
     protocolVersions: role.protocolVersions,
+    // Desktop only: `printer: { name }` reaches a printer installed on the till (USB_PRINTING_SPEC).
+    usbPrinting: role.usbPrinting,
     // Resolves for every outcome the store can act on, rejects only when the call is malformed
     // (SPEC §3.3). The main process re-checks the calling frame's origin.
     print: async (envelope: unknown) => {

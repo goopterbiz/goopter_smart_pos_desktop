@@ -7,7 +7,10 @@ import type { LogEntry } from "../../src/bridge/logEntry.js";
 import { PrinterGate } from "../../src/bridge/printerGate.js";
 import { PrintService } from "../../src/bridge/printService.js";
 import type { PrinterTransport } from "../../src/bridge/transport.js";
-import { envelope, EPOCH, FakeTransport, flush, RecordingLog, sleep, messageOf } from "./support.js";
+import { resolveInstalledPrinter, type PrinterDirectory } from "../../src/bridge/installedPrinter.js";
+import {
+  directoryOf, envelope, EPOCH, FakeSpooler, FakeTransport, flush, messageOf, namedEnvelope, PAYLOAD, RecordingLog, sleep,
+} from "./support.js";
 
 /** SPEC §3.3, §4.1, §5, §8.2. Android PrintServiceTests. */
 describe("PrintService", () => {
@@ -174,6 +177,115 @@ describe("PrintService", () => {
     expect(log.entries.at(-1)).toMatchObject({ event: "failed", outcome: "internal_error" });
     expect(messageOf(await service({ transport: afterConnect }).print(envelope(), "o")))
       .toBe(JobFailure.writeStalled("192.168.1.50:9100").message);
+  });
+
+  describe("installed printer", () => {
+    const named = (o: { spooler?: FakeSpooler; transport?: FakeTransport; directory?: PrinterDirectory;
+      gate?: PrinterGate; suspicion?: LocalNetworkSuspicion; deadlineMs?: number; log?: (entry: LogEntry) => void } = {}) =>
+      new PrintService({
+        gate: o.gate ?? new PrinterGate(),
+        transport: o.transport ?? new FakeTransport(),
+        spooler: o.spooler ?? new FakeSpooler(),
+        directory: o.directory ?? directoryOf("EPSON_TM_T20III"),
+        log: o.log ?? new RecordingLog().append,
+        suspicion: o.suspicion ?? null,
+        jobDeadlineMs: o.deadlineMs ?? 5_000,
+        connectTimeoutMs: 1_000,
+        now: () => EPOCH,
+      });
+
+    it("goes to the spooler, never the socket, and logs the printer name", async () => {
+      const spooler = new FakeSpooler();
+      const transport = new FakeTransport();
+      const log = new RecordingLog();
+      const response = await named({ spooler, transport, log: log.append }).print(namedEnvelope(), "o");
+      expect(response).toStrictEqual(successResponse(8));
+      expect(spooler.calls.map((p) => p.name)).toEqual(["EPSON_TM_T20III"]);
+      expect(spooler.received[0]).toEqual(PAYLOAD);
+      expect(transport.calls).toHaveLength(0);
+      expect(log.entries.map((e) => e.event)).toEqual(["bridge_call", "queued", "wrote"]);
+      expect(log.entries.every((e) => e.target === "EPSON_TM_T20III")).toBe(true);
+    });
+
+    it("a printer that is not installed is refused before queueing", async () => {
+      const spooler = new FakeSpooler();
+      const log = new RecordingLog();
+      const response = await named({ spooler, log: log.append }).print(namedEnvelope({ name: "Kitchen" }), "o");
+      expect(messageOf(response)).toBe(JobFailure.printerNotInstalled("Kitchen").message);
+      expect(spooler.calls).toHaveLength(0);
+      expect(log.entries).toEqual([
+        { timestamp: EPOCH, event: "rejected", origin: "o", target: "Kitchen", outcome: "printer_not_installed" },
+      ]);
+    });
+
+    it("a directory that cannot be read lists no printers", async () => {
+      const broken: PrinterDirectory = { list: async () => { throw new Error("CUPS is down"); } };
+      expect(messageOf(await named({ directory: broken }).print(namedEnvelope(), "o")))
+        .toBe(JobFailure.printerNotInstalled("EPSON_TM_T20III").message);
+    });
+
+    it("a printer list that never answers is treated as empty, not waited on forever", async () => {
+      const hung: PrinterDirectory = { list: () => new Promise(() => undefined) };
+      const subject = new PrintService({ directory: hung, spooler: new FakeSpooler(), log: new RecordingLog().append,
+        printerListTimeoutMs: 50, now: () => EPOCH });
+      expect(messageOf(await subject.print(namedEnvelope(), "o"))).toBe(JobFailure.printerNotInstalled("EPSON_TM_T20III").message);
+    });
+
+    it("an empty name is refused before listing or spooling", async () => {
+      const spooler = new FakeSpooler();
+      let listed = false;
+      const directory: PrinterDirectory = { list: async () => { listed = true; return [""]; } };
+      const log = new RecordingLog();
+      const response = await named({ spooler, directory, log: log.append }).print(namedEnvelope({ name: "" }), "o");
+      expect(messageOf(response)).toBe(JobFailure.missingPrinterName().message);
+      expect(listed).toBe(false);
+      expect(spooler.calls).toHaveLength(0);
+      expect(log.entries).toEqual([{ timestamp: EPOCH, event: "rejected", origin: "o", outcome: "missing_printer_name" }]);
+    });
+
+    it("a refusal from the spooler is reported as failed", async () => {
+      const spooler = new FakeSpooler({ kind: "fail", failure: JobFailure.spoolerRefused("EPSON_TM_T20III") });
+      const log = new RecordingLog();
+      const response = await named({ spooler, log: log.append }).print(namedEnvelope(), "o");
+      expect(messageOf(response)).toBe(JobFailure.spoolerRefused("EPSON_TM_T20III").message);
+      expect(log.entries.at(-1)).toMatchObject({ event: "failed", outcome: "spooler_refused" });
+    });
+
+    it("a spooler that never finishes times out naming the print system", async () => {
+      const log = new RecordingLog();
+      const response = await named({ spooler: new FakeSpooler({ kind: "hang" }), deadlineMs: 100, log: log.append })
+        .print(namedEnvelope(), "o");
+      expect(messageOf(response)).toBe(JobFailure.spoolerTimedOut("EPSON_TM_T20III").message);
+      expect(log.entries.at(-1)).toMatchObject({ event: "timeout", outcome: "spooler_timed_out" });
+    });
+
+    it("an unexpected spooler error resolves as a spooler timeout", async () => {
+      const spooler = new FakeSpooler();
+      spooler.send = async () => { throw new TypeError("unexpected"); };
+      expect(messageOf(await named({ spooler }).print(namedEnvelope(), "o")))
+        .toBe(JobFailure.spoolerTimedOut("EPSON_TM_T20III").message);
+    });
+
+    it("one job at a time per installed printer", async () => {
+      const gate = new PrinterGate();
+      const blocker = gate.run(resolveInstalledPrinter("EPSON_TM_T20III", ["EPSON_TM_T20III"]), new AbortController().signal,
+        () => sleep(300));
+      await flush();
+      const response = await named({ gate, deadlineMs: 100 }).print(namedEnvelope(), "o");
+      await blocker;
+      expect(messageOf(response)).toBe(JobFailure.queueTimedOut("EPSON_TM_T20III").message);
+    });
+
+    it("a USB success says nothing about the local network permission", async () => {
+      const suspicion = new LocalNetworkSuspicion();
+      for (const host of ["192.168.1.50", "192.168.1.51"]) {
+        await service({ transport: unreachableAt(host), suspicion }).print(envelope({ host }), "o");
+      }
+      await named({ suspicion }).print(namedEnvelope(), "o");
+      const response = await service({ transport: unreachableAt("192.168.1.52"), suspicion })
+        .print(envelope({ host: "192.168.1.52" }), "o");
+      expect(messageOf(response)).toBe(JobFailure.unreachableMaybePermission("192.168.1.52:9100").message);
+    });
   });
 
   it("a log that throws never changes the outcome", async () => {

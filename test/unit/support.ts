@@ -1,5 +1,7 @@
 import net from "node:net";
 import type { Destination } from "../../src/bridge/destination.js";
+import type { InstalledPrinter, PrinterDirectory } from "../../src/bridge/installedPrinter.js";
+import type { SpoolerTransport } from "../../src/bridge/spoolerTransport.js";
 import type { JobFailure } from "../../src/bridge/jobFailure.js";
 import type { LogEntry } from "../../src/bridge/logEntry.js";
 import type { PrinterTransport } from "../../src/bridge/transport.js";
@@ -27,6 +29,11 @@ export function envelope(
   if (version !== null) body.protocol_version = version;
   if (base64 !== null) body.data_base64 = base64;
   return body;
+}
+
+/** An envelope for a printer installed on the till. `printer` replaces the printer object. */
+export function namedEnvelope(printer: Record<string, unknown> = { name: "EPSON_TM_T20III" }): Record<string, unknown> {
+  return { protocol_version: 2, printer, data_base64: "G0BoaQodVgA=" };
 }
 
 /** The eight bytes `G0BoaQodVgA=` decodes to. */
@@ -116,6 +123,27 @@ export class FakeTransport implements PrinterTransport {
     return data.length;
   }
 }
+
+export type SpoolerBehaviour = { kind: "succeed" } | { kind: "fail"; failure: JobFailure } | { kind: "hang" };
+
+export class FakeSpooler implements SpoolerTransport {
+  readonly calls: InstalledPrinter[] = [];
+  readonly received: Uint8Array[] = [];
+
+  constructor(public behaviour: SpoolerBehaviour = { kind: "succeed" }) {}
+
+  async send(data: Uint8Array, printer: InstalledPrinter, signal: AbortSignal): Promise<number> {
+    this.calls.push(printer);
+    this.received.push(data);
+    const behaviour = this.behaviour;
+    if (behaviour.kind === "fail") throw behaviour.failure;
+    if (behaviour.kind === "hang") await sleep(600_000, signal);
+    return data.length;
+  }
+}
+
+/** A directory listing exactly these printer names. */
+export const directoryOf = (...names: string[]): PrinterDirectory => ({ list: async () => names });
 
 /** Fails rather than hanging when the printer's lock is still held. */
 export async function assertPrinterIsFree(gate: PrinterGate, destination: Destination, timeoutMs = 2_000): Promise<void> {

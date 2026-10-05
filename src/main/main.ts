@@ -11,6 +11,7 @@ import { hasLocalNetworkPermission, LocalNetworkSuspicion } from "../bridge/loca
 import { frameRole } from "../bridge/navigationPolicy.js";
 import { PrintBridgeHandler } from "../bridge/printBridgeHandler.js";
 import { PrintService } from "../bridge/printService.js";
+import { ProcessSpoolerTransport, spoolCommand } from "../bridge/spoolerTransport.js";
 import { debugOrigin, shellUrlPrefix, userDataOverride } from "./config.js";
 import { PosWindow } from "./posWindow.js";
 import { writeSettings } from "./settings.js";
@@ -41,6 +42,9 @@ if (!app.requestSingleInstanceLock()) {
       log: (entry) => log.append(entry),
       // macOS 15+ gates the store LAN behind a permission nothing can read (§8.2).
       suspicion: hasLocalNetworkPermission(process.platform, os.release()) ? new LocalNetworkSuspicion() : null,
+      // Printers installed on the till (USB_PRINTING_SPEC), listed by the POS window's print system.
+      directory: { list: async () => (pos === null ? [] : (await pos.webContents.getPrintersAsync()).map((p) => p.name)) },
+      spooler: new ProcessSpoolerTransport((name) => spoolCommand(process.platform, name, rawPrintHelperPath())),
     });
     const handler = new PrintBridgeHandler({ service, log: (entry) => log.append(entry), debugOrigin });
 
@@ -65,6 +69,13 @@ if (!app.requestSingleInstanceLock()) {
   });
 }
 
+/** The Windows raw-print helper: in the app's resources when packaged, built into dist/ otherwise. */
+function rawPrintHelperPath(): string {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, "rawprint.exe")
+    : path.join(app.getAppPath(), "dist", "native", "rawprint.exe");
+}
+
 function roleOf(frame: WebFrameMain | null | undefined) {
   if (!frame) return null;
   return frameRole({ url: frame.url, isMainFrame: frame.parent === null, debugOrigin, shellUrlPrefix });
@@ -76,7 +87,7 @@ function registerIpc(pos: PosWindow, handler: PrintBridgeHandler, log: JobLog): 
     const role = roleOf(event.senderFrame);
     event.returnValue =
       role === "pos"
-        ? { role, version: app.getVersion(), protocolVersions: [...SUPPORTED_PROTOCOL_VERSIONS] }
+        ? { role, version: app.getVersion(), protocolVersions: [...SUPPORTED_PROTOCOL_VERSIONS], usbPrinting: true }
         : { role };
   });
 

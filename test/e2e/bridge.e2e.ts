@@ -66,6 +66,7 @@ test("GoopterPOS has the shape iOS and Android give it, and no Bluetooth bridge"
       protocolVersions: api.protocolVersions,
       keys: Object.keys(api).sort(),
       printIsFunction: typeof api.print === "function",
+      usbPrinting: api.usbPrinting,
       frozen: Object.isFrozen(api) && Object.isFrozen(api.protocolVersions),
       writable: descriptor?.writable,
       configurable: descriptor?.configurable,
@@ -76,8 +77,9 @@ test("GoopterPOS has the shape iOS and Android give it, and no Bluetooth bridge"
   });
   expect(shape).toEqual({
     protocolVersions: [2],
-    keys: ["print", "protocolVersions", "version"],
+    keys: ["print", "protocolVersions", "usbPrinting", "version"],
     printIsFunction: true,
+    usbPrinting: true,
     frozen: true,
     writable: false,
     configurable: false,
@@ -121,6 +123,16 @@ test("a refused address resolves naming it", async () => {
   });
 });
 
+test("a printer name that is not installed resolves naming it", async () => {
+  const response = await page.evaluate(() =>
+    (window as any).GoopterPOS.print({ protocol_version: 2, printer: { name: "No Such Printer 7f3a" }, data_base64: "G0A=" }),
+  );
+  expect(response).toEqual({
+    successful: false,
+    message: 'No printer named "No Such Printer 7f3a" is installed on this computer. Check the printer name in Odoo.',
+  });
+});
+
 test("a malformed call rejects", async () => {
   const outcome = await page.evaluate(() =>
     (window as any).GoopterPOS.print(null).then(
@@ -153,6 +165,9 @@ test("the log records the launch and every call, never the payload", async () =>
   expect(events).toContainEqual(expect.objectContaining({ event: "rejected", origin, outcome: "unsupported_version" }));
   expect(events).toContainEqual(expect.objectContaining({ event: "rejected", origin, target: "8.8.8.8", outcome: "host_not_local" }));
   expect(events).toContainEqual(expect.objectContaining({ event: "rejected", origin, outcome: "malformed" }));
+  expect(events).toContainEqual(
+    expect.objectContaining({ event: "rejected", origin, target: "No Such Printer 7f3a", outcome: "printer_not_installed" }),
+  );
   expect(events).toContainEqual(expect.objectContaining({ event: "bridge_call", origin, target: "10.255.255.1:9100", bytes: 2 }));
   expect(text).not.toContain("G0A=");
 });
