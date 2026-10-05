@@ -1,7 +1,7 @@
 {
   "name": "goopter-smart-pos",
   "productName": "Goopter Smart POS",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Desktop shell that hosts the Goopter Odoo POS and lets it print to store LAN printers.",
   "private": true,
   "homepage": "https://www.goopter.com",
