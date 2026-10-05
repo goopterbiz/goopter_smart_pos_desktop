@@ -88,8 +88,8 @@ export class PosWindow {
    * Kiosk or an ordinary window, at once, with no restart (C5). The log, where the mode is chosen,
    * is closed first. It is a modal child that blocks input to this window: on Linux the full screen
    * window can cover it and the POS then ignores the mouse, and on macOS a window with a sheet
-   * attached neither enters nor leaves full screen. A log that does not close within a second
-   * delays the change rather than dropping it.
+   * attached neither enters nor leaves full screen. The mode is already saved, so a log that never
+   * closes leaves it for the next launch.
    */
   setKiosk(value: boolean): void {
     const log = this.logWindow;
@@ -97,14 +97,7 @@ export class PosWindow {
       this.window.setKiosk(value);
       return;
     }
-    let timer: NodeJS.Timeout;
-    const apply = () => {
-      clearTimeout(timer);
-      log.removeListener("closed", apply);
-      this.window.setKiosk(value);
-    };
-    timer = setTimeout(apply, 1_000);
-    log.once("closed", apply);
+    log.once("closed", () => this.window.setKiosk(value));
     log.close();
   }
 

@@ -229,24 +229,3 @@ test("a relaunch opens windowed, and choosing Kiosk closes the log and restores 
   expect(JSON.parse(readFileSync(settingsFile(), "utf8"))).toEqual({ kiosk: true });
   await expect.poll(() => logEvents().some((e) => e.event === "window_mode" && e.outcome === "kiosk")).toBe(true);
 });
-
-test("a mode still applies when the log refuses to close", async () => {
-  log = await openLog(app);
-  await app.evaluate(({ BrowserWindow }) => {
-    const logWindow = BrowserWindow.getAllWindows().find((w) => w.getParentWindow() !== null)! as any;
-    logWindow.refuseClose = (event: Electron.Event) => event.preventDefault();
-    logWindow.on("close", logWindow.refuseClose);
-  });
-  await log.click("#more");
-  await log.click("#mode-window");
-  await expect.poll(() => posIsKiosk(app, pos), { timeout: 5_000 }).toBe(false);
-  expect(JSON.parse(readFileSync(settingsFile(), "utf8"))).toEqual({ kiosk: false });
-  // Let it close again, and leave the till in kiosk mode as it started.
-  await app.evaluate(({ BrowserWindow }) => {
-    const logWindow = BrowserWindow.getAllWindows().find((w) => w.getParentWindow() !== null)! as any;
-    logWindow.removeListener("close", logWindow.refuseClose);
-  });
-  await chooseMode(log, "#mode-kiosk");
-  await expect.poll(() => posIsKiosk(app, pos)).toBe(true);
-  expect(await logOpen(app)).toBe(false);
-});

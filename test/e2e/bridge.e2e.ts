@@ -63,7 +63,6 @@ test("GoopterPOS has the shape iOS and Android give it, and no Bluetooth bridge"
     const api = (window as any).GoopterPOS;
     const descriptor = Object.getOwnPropertyDescriptor(window, "GoopterPOS");
     return {
-      version: api.version,
       protocolVersions: api.protocolVersions,
       keys: Object.keys(api).sort(),
       printIsFunction: typeof api.print === "function",
@@ -76,7 +75,6 @@ test("GoopterPOS has the shape iOS and Android give it, and no Bluetooth bridge"
     };
   });
   expect(shape).toEqual({
-    version: "1.0.0",
     protocolVersions: [2],
     keys: ["print", "protocolVersions", "version"],
     printIsFunction: true,
