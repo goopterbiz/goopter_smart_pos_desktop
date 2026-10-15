@@ -35,11 +35,14 @@ name is required: there is no default printer. The bytes go to the OS print queu
 await window.GoopterPOS.print({ protocol_version: 2, printer: { name: "EPSON_TM_T20III" }, data_base64: "G0A..." });
 ```
 
-This app alone also lets the page open the diagnostic log, the same window Ctrl/Cmd+Shift+L opens.
-iOS and Android do not have the method, so feature-detect it:
+This app alone also lets the page open the diagnostic log, the same window Ctrl/Cmd+Shift+L opens,
+and put the till into kiosk mode, which is applied at once and saved like the log's Kiosk choice.
+There is no method to leave kiosk mode: that stays with the log's menu. iOS and Android do not have
+either method, so feature-detect them:
 
 ```js
 if (typeof window.GoopterPOS?.openLog === "function") await window.GoopterPOS.openLog();
+if (typeof window.GoopterPOS?.enterKiosk === "function") await window.GoopterPOS.enterKiosk();
 ```
 
 The same rules as the other two apps hold:

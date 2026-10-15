@@ -77,7 +77,7 @@ test("GoopterPOS has the shape iOS and Android give it, and no Bluetooth bridge"
   });
   expect(shape).toEqual({
     protocolVersions: [2],
-    keys: ["openLog", "print", "protocolVersions", "usbPrinting", "version"],
+    keys: ["enterKiosk", "openLog", "print", "protocolVersions", "usbPrinting", "version"],
     printIsFunction: true,
     usbPrinting: true,
     frozen: true,
@@ -185,23 +185,26 @@ test("GoopterPOS.openLog() opens the diagnostic log once, and a second call keep
   expect(app.windows()).toHaveLength(1);
 });
 
-test("goopter:open-log refuses a frame that is not the POS", async () => {
-  const outcome = await app.evaluate(async ({ ipcMain }) => {
-    const handler = (ipcMain as any)._invokeHandlers.get("goopter:open-log");
-    if (typeof handler !== "function") {
-      throw new Error("ipcMain._invokeHandlers has no goopter:open-log handler; the internal API may have changed");
-    }
-    const event = { senderFrame: { url: "https://example.com/", parent: null } };
-    try {
-      await handler(event);
-      return "resolved";
-    } catch (error) {
-      return (error as Error).message;
-    }
+for (const channel of ["goopter:open-log", "goopter:enter-kiosk"]) {
+  test(`${channel} refuses a frame that is not the POS`, async () => {
+    const outcome = await app.evaluate(async ({ ipcMain }, channel) => {
+      const handler = (ipcMain as any)._invokeHandlers.get(channel);
+      if (typeof handler !== "function") {
+        throw new Error(`ipcMain._invokeHandlers has no ${channel} handler; the internal API may have changed`);
+      }
+      const event = { senderFrame: { url: "https://example.com/", parent: null } };
+      try {
+        await handler(event);
+        return "resolved";
+      } catch (error) {
+        return (error as Error).message;
+      }
+    }, channel);
+    expect(outcome).toBe("Not permitted.");
+    expect(app.windows()).toHaveLength(1);
+    expect(await (await app.browserWindow(page)).evaluate((w) => w.isKiosk())).toBe(false);
   });
-  expect(outcome).toBe("Not permitted.");
-  expect(app.windows()).toHaveLength(1);
-});
+}
 
 test("GOOPTER_WINDOWED=true disables kiosk (C1)", async () => {
   const win = await app.browserWindow(page);
