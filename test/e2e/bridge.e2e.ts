@@ -77,7 +77,7 @@ test("GoopterPOS has the shape iOS and Android give it, and no Bluetooth bridge"
   });
   expect(shape).toEqual({
     protocolVersions: [2],
-    keys: ["enterKiosk", "openLog", "print", "protocolVersions", "usbPrinting", "version"],
+    keys: ["enterKiosk", "isKiosk", "openLog", "print", "protocolVersions", "usbPrinting", "version"],
     printIsFunction: true,
     usbPrinting: true,
     frozen: true,
@@ -185,7 +185,7 @@ test("GoopterPOS.openLog() opens the diagnostic log once, and a second call keep
   expect(app.windows()).toHaveLength(1);
 });
 
-for (const channel of ["goopter:open-log", "goopter:enter-kiosk"]) {
+for (const channel of ["goopter:open-log", "goopter:enter-kiosk", "goopter:is-kiosk"]) {
   test(`${channel} refuses a frame that is not the POS`, async () => {
     const outcome = await app.evaluate(async ({ ipcMain }, channel) => {
       const handler = (ipcMain as any)._invokeHandlers.get(channel);
@@ -206,9 +206,10 @@ for (const channel of ["goopter:open-log", "goopter:enter-kiosk"]) {
   });
 }
 
-test("GOOPTER_WINDOWED=true disables kiosk (C1)", async () => {
+test("GOOPTER_WINDOWED=true disables kiosk (C1), and GoopterPOS.isKiosk() says so", async () => {
   const win = await app.browserWindow(page);
   expect(await win.evaluate((w) => w.isKiosk())).toBe(false);
+  expect(await page.evaluate(() => (window as any).GoopterPOS.isKiosk())).toBe(false);
 });
 
 test("GOOPTER_WINDOWED=1 leaves a saved kiosk mode on; only \"true\" disables it (C1)", async () => {

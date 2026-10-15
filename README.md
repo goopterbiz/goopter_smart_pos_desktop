@@ -36,13 +36,15 @@ await window.GoopterPOS.print({ protocol_version: 2, printer: { name: "EPSON_TM_
 ```
 
 This app alone also lets the page open the diagnostic log, the same window Ctrl/Cmd+Shift+L opens,
-and put the till into kiosk mode, which is applied at once and saved like the log's Kiosk choice.
-There is no method to leave kiosk mode: that stays with the log's menu. iOS and Android do not have
-either method, so feature-detect them:
+ask whether the window is in kiosk mode, and put the till into kiosk mode, which is applied at once
+and saved like the log's Kiosk choice. There is no method to leave kiosk mode: that stays with the
+log's menu. iOS and Android do not have these methods, so feature-detect them:
 
 ```js
 if (typeof window.GoopterPOS?.openLog === "function") await window.GoopterPOS.openLog();
-if (typeof window.GoopterPOS?.enterKiosk === "function") await window.GoopterPOS.enterKiosk();
+if (typeof window.GoopterPOS?.isKiosk === "function" && !(await window.GoopterPOS.isKiosk())) {
+    await window.GoopterPOS.enterKiosk();
+}
 ```
 
 The same rules as the other two apps hold:

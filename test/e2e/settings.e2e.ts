@@ -232,9 +232,11 @@ test("a relaunch opens in kiosk mode, and choosing Window closes the log and res
 
 test("GoopterPOS.enterKiosk() from the POS page applies kiosk at once, saves it, and logs the page's origin", async () => {
   expect(await posIsKiosk(app, pos)).toBe(false);
+  expect(await pos.evaluate(() => (window as any).GoopterPOS.isKiosk())).toBe(false);
 
   await pos.evaluate(() => (window as any).GoopterPOS.enterKiosk());
   await expect.poll(() => posIsKiosk(app, pos)).toBe(true);
+  expect(await pos.evaluate(() => (window as any).GoopterPOS.isKiosk())).toBe(true);
   if (process.platform === "darwin") await expect.poll(() => posScreen(app, pos)).toEqual({ fullScreen: true });
   expect(await posEnabled(app, pos)).toBe(true);
   expect(JSON.parse(readFileSync(settingsFile(), "utf8"))).toEqual({ kiosk: true });

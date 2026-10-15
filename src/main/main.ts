@@ -113,6 +113,7 @@ function registerIpc(pos: PosWindow, handler: PrintBridgeHandler, log: JobLog): 
   };
   posHandle("goopter:open-log", () => pos.openLog());
   posHandle("goopter:enter-kiosk", (event) => setWindowMode(true, originOf(event.senderFrame?.url ?? "") ?? "unknown"));
+  posHandle("goopter:is-kiosk", () => pos.window.isKiosk());
 
   /** The app's own screens only. A POS page that found these channels gets nothing from them. */
   const shellHandle = (channel: string, fn: (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown) => {
