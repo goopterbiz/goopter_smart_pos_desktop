@@ -7,7 +7,7 @@ import { _electron as electron, expect, test, type ElectronApplication, type Pag
 
 /**
  * C5 and C6: the window mode chosen from the diagnostic log's ⋯ menu is saved, applied at once,
- * logged, and used on the next launch. The till starts in kiosk mode, without the windowed override.
+ * logged, and used on the next launch. The till starts windowed, without the windowed override.
  *
  * Each test continues from the state the one before it left.
  */
@@ -108,9 +108,9 @@ test.afterAll(async () => {
   rmSync(userData, { recursive: true, force: true });
 });
 
-test("a till with no saved setting starts in kiosk mode", async () => {
+test("a till with no saved setting starts windowed", async () => {
   expect(existsSync(settingsFile())).toBe(false);
-  expect(await posIsKiosk(app, pos)).toBe(true);
+  expect(await posIsKiosk(app, pos)).toBe(false);
 });
 
 test("the log header reads ⋯, Diagnostic log, Refresh, Done, and the footer shows only the log path", async () => {
@@ -136,8 +136,8 @@ test("the ⋯ menu opens from the button's left edge with Home, Change store, an
   await expect(log.locator("#menu hr")).toHaveCount(1);
   await expect(log.locator("#menu")).toContainText("Window mode");
   await expect(log.locator("#menu")).toContainText("Applies now and on every launch.");
-  await expect(log.locator("#mode-kiosk")).toHaveAttribute("aria-checked", "true");
-  await expect(log.locator("#mode-window")).toHaveAttribute("aria-checked", "false");
+  await expect(log.locator("#mode-kiosk")).toHaveAttribute("aria-checked", "false");
+  await expect(log.locator("#mode-window")).toHaveAttribute("aria-checked", "true");
 });
 
 test("Esc closes an open menu and leaves the log open", async () => {
@@ -159,21 +159,22 @@ test("shell:set-kiosk refuses anything but a boolean", async () => {
   );
   expect(outcome).toBe("rejected");
   expect(existsSync(settingsFile())).toBe(false);
-  expect(await posIsKiosk(app, pos)).toBe(true);
+  expect(await posIsKiosk(app, pos)).toBe(false);
 });
 
-test("choosing Window closes the log, applies at once, saves {\"kiosk\":false}, logs it, and moves the tick", async () => {
-  await chooseMode(log, "#mode-window");
-  await expect.poll(() => posIsKiosk(app, pos)).toBe(false);
-  if (process.platform === "darwin") await expect.poll(() => posScreen(app, pos)).toEqual({ fullScreen: false });
+test("choosing Kiosk closes the log, applies at once, saves {\"kiosk\":true}, logs it, and moves the tick", async () => {
+  await chooseMode(log, "#mode-kiosk");
+  await expect.poll(() => posIsKiosk(app, pos)).toBe(true);
+  if (process.platform === "darwin") await expect.poll(() => posScreen(app, pos)).toEqual({ fullScreen: true });
+  // On Linux a full screen window can cover the log, and an open modal log leaves the POS ignoring input.
   expect(await logOpen(app)).toBe(false);
   expect(await posEnabled(app, pos)).toBe(true);
-  expect(JSON.parse(readFileSync(settingsFile(), "utf8"))).toEqual({ kiosk: false });
-  await expect.poll(() => logEvents().some((e) => e.event === "window_mode" && e.outcome === "window")).toBe(true);
+  expect(JSON.parse(readFileSync(settingsFile(), "utf8"))).toEqual({ kiosk: true });
+  await expect.poll(() => logEvents().some((e) => e.event === "window_mode" && e.outcome === "kiosk")).toBe(true);
   log = await openLog(app);
   await log.click("#more");
-  await expect(log.locator("#mode-window")).toHaveAttribute("aria-checked", "true");
-  await expect(log.locator("#mode-kiosk")).toHaveAttribute("aria-checked", "false");
+  await expect(log.locator("#mode-kiosk")).toHaveAttribute("aria-checked", "true");
+  await expect(log.locator("#mode-window")).toHaveAttribute("aria-checked", "false");
   await pressEscapeInLog(app);
 });
 
@@ -198,43 +199,39 @@ test("a POS page has no shell API and cannot reach shell:set-kiosk", async () =>
     }
     const event = { senderFrame: { url, parent: null } };
     try {
-      await handler(event, true);
+      await handler(event, false);
       return "resolved";
     } catch (error) {
       return (error as Error).message;
     }
   }, posUrl);
   expect(outcome).toBe("Not permitted.");
-  expect(JSON.parse(readFileSync(settingsFile(), "utf8"))).toEqual({ kiosk: false });
-  expect(await posIsKiosk(app, pos)).toBe(false);
+  expect(JSON.parse(readFileSync(settingsFile(), "utf8"))).toEqual({ kiosk: true });
+  expect(await posIsKiosk(app, pos)).toBe(true);
 });
 
-test("a relaunch opens windowed, and choosing Kiosk closes the log and restores kiosk mode", async () => {
+test("a relaunch opens in kiosk mode, and choosing Window closes the log and restores the window", async () => {
   await app.close();
   ({ app, pos } = await launch());
-  expect(await posIsKiosk(app, pos)).toBe(false);
+  expect(await posIsKiosk(app, pos)).toBe(true);
 
   log = await openLog(app);
   // Read back from disk, so the entry survives a relaunch.
   await expect(log.locator("#entries tr", { hasText: "window_mode" })).toHaveCount(1);
   await log.click("#more");
-  await expect(log.locator("#mode-window")).toHaveAttribute("aria-checked", "true");
+  await expect(log.locator("#mode-kiosk")).toHaveAttribute("aria-checked", "true");
   await log.click("#more");
-  await chooseMode(log, "#mode-kiosk");
-  await expect.poll(() => posIsKiosk(app, pos)).toBe(true);
-  if (process.platform === "darwin") await expect.poll(() => posScreen(app, pos)).toEqual({ fullScreen: true });
-  // On Linux a full screen window can cover the log, and an open modal log leaves the POS ignoring input.
+  await chooseMode(log, "#mode-window");
+  await expect.poll(() => posIsKiosk(app, pos)).toBe(false);
+  if (process.platform === "darwin") await expect.poll(() => posScreen(app, pos)).toEqual({ fullScreen: false });
   expect(await logOpen(app)).toBe(false);
   expect(await posEnabled(app, pos)).toBe(true);
-  expect(JSON.parse(readFileSync(settingsFile(), "utf8"))).toEqual({ kiosk: true });
-  await expect.poll(() => logEvents().some((e) => e.event === "window_mode" && e.outcome === "kiosk")).toBe(true);
+  expect(JSON.parse(readFileSync(settingsFile(), "utf8"))).toEqual({ kiosk: false });
+  await expect.poll(() => logEvents().some((e) => e.event === "window_mode" && e.outcome === "window")).toBe(true);
 });
 
 test("GoopterPOS.enterKiosk() from the POS page applies kiosk at once, saves it, and logs the page's origin", async () => {
-  log = await openLog(app);
-  await chooseMode(log, "#mode-window");
-  await expect.poll(() => posIsKiosk(app, pos)).toBe(false);
-  expect(JSON.parse(readFileSync(settingsFile(), "utf8"))).toEqual({ kiosk: false });
+  expect(await posIsKiosk(app, pos)).toBe(false);
 
   await pos.evaluate(() => (window as any).GoopterPOS.enterKiosk());
   await expect.poll(() => posIsKiosk(app, pos)).toBe(true);

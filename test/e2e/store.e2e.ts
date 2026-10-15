@@ -4,8 +4,8 @@ import path from "node:path";
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from "@playwright/test";
 
 /**
- * A till with no store saved and no debug override: the app opens on the store screen, in kiosk
- * mode, and that screen gets the shell API but never the print bridge.
+ * A till with no store saved and no debug override: the app opens on the store screen, in an
+ * ordinary window, and that screen gets the shell API but never the print bridge.
  */
 
 const root = path.resolve(__dirname, "../..");
@@ -31,9 +31,9 @@ test.afterAll(async () => {
   rmSync(userData, { recursive: true, force: true });
 });
 
-test("a till with no store opens the store screen in kiosk mode", async () => {
+test("a till with no store opens the store screen windowed", async () => {
   expect(page.url()).toMatch(/\/renderer\/store\.html$/);
-  expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isKiosk())).toBe(true);
+  expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isKiosk())).toBe(false);
 });
 
 test("the store screen gets the shell API and no print bridge", async () => {
