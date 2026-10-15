@@ -98,6 +98,11 @@ function registerIpc(pos: PosWindow, handler: PrintBridgeHandler, log: JobLog): 
     return handler.handle(envelope, origin, isMainFrame);
   });
 
+  ipcMain.handle("goopter:open-log", (event: IpcMainInvokeEvent) => {
+    if (roleOf(event.senderFrame) !== "pos") throw new Error("Not permitted.");
+    pos.openLog();
+  });
+
   /** The app's own screens only. A POS page that found these channels gets nothing from them. */
   const shellHandle = (channel: string, fn: (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown) => {
     ipcMain.handle(channel, (event, ...args) => {

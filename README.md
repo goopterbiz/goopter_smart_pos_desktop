@@ -35,6 +35,13 @@ name is required: there is no default printer. The bytes go to the OS print queu
 await window.GoopterPOS.print({ protocol_version: 2, printer: { name: "EPSON_TM_T20III" }, data_base64: "G0A..." });
 ```
 
+This app alone also lets the page open the diagnostic log, the same window Ctrl/Cmd+Shift+L opens.
+iOS and Android do not have the method, so feature-detect it:
+
+```js
+if (typeof window.GoopterPOS?.openLog === "function") await window.GoopterPOS.openLog();
+```
+
 The same rules as the other two apps hold:
 
 - The bridge exists only in the main frame of an `https` page on `goopter.com` or a subdomain of it.
