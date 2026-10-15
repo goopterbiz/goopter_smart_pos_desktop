@@ -229,3 +229,18 @@ test("a relaunch opens windowed, and choosing Kiosk closes the log and restores 
   expect(JSON.parse(readFileSync(settingsFile(), "utf8"))).toEqual({ kiosk: true });
   await expect.poll(() => logEvents().some((e) => e.event === "window_mode" && e.outcome === "kiosk")).toBe(true);
 });
+
+test("GoopterPOS.enterKiosk() from the POS page applies kiosk at once, saves it, and logs the page's origin", async () => {
+  log = await openLog(app);
+  await chooseMode(log, "#mode-window");
+  await expect.poll(() => posIsKiosk(app, pos)).toBe(false);
+  expect(JSON.parse(readFileSync(settingsFile(), "utf8"))).toEqual({ kiosk: false });
+
+  await pos.evaluate(() => (window as any).GoopterPOS.enterKiosk());
+  await expect.poll(() => posIsKiosk(app, pos)).toBe(true);
+  if (process.platform === "darwin") await expect.poll(() => posScreen(app, pos)).toEqual({ fullScreen: true });
+  expect(await posEnabled(app, pos)).toBe(true);
+  expect(JSON.parse(readFileSync(settingsFile(), "utf8"))).toEqual({ kiosk: true });
+  const origin = `http://127.0.0.1:${(posServer.address() as AddressInfo).port}`;
+  await expect.poll(() => logEvents().some((e) => e.event === "window_mode" && e.outcome === "kiosk" && e.origin === origin)).toBe(true);
+});
