@@ -77,7 +77,7 @@ test("GoopterPOS has the shape iOS and Android give it, and no Bluetooth bridge"
   });
   expect(shape).toEqual({
     protocolVersions: [2],
-    keys: ["print", "protocolVersions", "usbPrinting", "version"],
+    keys: ["openLog", "print", "protocolVersions", "usbPrinting", "version"],
     printIsFunction: true,
     usbPrinting: true,
     frozen: true,
@@ -170,6 +170,37 @@ test("the log records the launch and every call, never the payload", async () =>
   );
   expect(events).toContainEqual(expect.objectContaining({ event: "bridge_call", origin, target: "10.255.255.1:9100", bytes: 2 }));
   expect(text).not.toContain("G0A=");
+});
+
+test("GoopterPOS.openLog() opens the diagnostic log once, and a second call keeps the one window", async () => {
+  await page.evaluate(() => (window as any).GoopterPOS.openLog());
+  const log = await app.waitForEvent("window");
+  await log.waitForLoadState("load");
+  expect(await log.title()).toBe("Diagnostic log");
+  await page.evaluate(() => (window as any).GoopterPOS.openLog());
+  expect(app.windows()).toHaveLength(2);
+  const closed = log.waitForEvent("close");
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((w) => w.getTitle() === "Diagnostic log")?.close());
+  await closed;
+  expect(app.windows()).toHaveLength(1);
+});
+
+test("goopter:open-log refuses a frame that is not the POS", async () => {
+  const outcome = await app.evaluate(async ({ ipcMain }) => {
+    const handler = (ipcMain as any)._invokeHandlers.get("goopter:open-log");
+    if (typeof handler !== "function") {
+      throw new Error("ipcMain._invokeHandlers has no goopter:open-log handler; the internal API may have changed");
+    }
+    const event = { senderFrame: { url: "https://example.com/", parent: null } };
+    try {
+      await handler(event);
+      return "resolved";
+    } catch (error) {
+      return (error as Error).message;
+    }
+  });
+  expect(outcome).toBe("Not permitted.");
+  expect(app.windows()).toHaveLength(1);
 });
 
 test("GOOPTER_WINDOWED=true disables kiosk (C1)", async () => {

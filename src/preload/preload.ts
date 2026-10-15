@@ -36,6 +36,7 @@ if (role.role === "pos") {
       if ("error" in reply) throw new Error(reply.error);
       return reply.response;
     },
+    openLog: () => ipcRenderer.invoke("goopter:open-log"),
   });
 } else if (role.role === "shell") {
   contextBridge.exposeInMainWorld("goopterShell", {
