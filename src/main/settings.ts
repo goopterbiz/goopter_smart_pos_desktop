@@ -3,7 +3,7 @@ import path from "node:path";
 import { app } from "electron";
 import { parseSettings, type Settings } from "../bridge/settings.js";
 
-/** The till's saved settings (C5). Every read goes through `parseSettings`, so a bad file means kiosk. */
+/** The till's saved settings (C5). Every read goes through `parseSettings`, so a bad file means an ordinary window. */
 const file = () => path.join(app.getPath("userData"), "settings.json");
 
 export function readSettings(): Settings {
@@ -11,7 +11,7 @@ export function readSettings(): Settings {
   try {
     text = readFileSync(file(), "utf8");
   } catch {
-    // Missing or unreadable: parseSettings reads that as kiosk.
+    // Missing or unreadable: parseSettings reads that as an ordinary window.
   }
   return parseSettings(text);
 }

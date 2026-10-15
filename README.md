@@ -35,11 +35,16 @@ name is required: there is no default printer. The bytes go to the OS print queu
 await window.GoopterPOS.print({ protocol_version: 2, printer: { name: "EPSON_TM_T20III" }, data_base64: "G0A..." });
 ```
 
-This app alone also lets the page open the diagnostic log, the same window Ctrl/Cmd+Shift+L opens.
-iOS and Android do not have the method, so feature-detect it:
+This app alone also lets the page open the diagnostic log, the same window Ctrl/Cmd+Shift+L opens,
+ask whether the window is in kiosk mode, and put the till into kiosk mode, which is applied at once
+and saved like the log's Kiosk choice. There is no method to leave kiosk mode: that stays with the
+log's menu. iOS and Android do not have these methods, so feature-detect them:
 
 ```js
 if (typeof window.GoopterPOS?.openLog === "function") await window.GoopterPOS.openLog();
+if (typeof window.GoopterPOS?.isKiosk === "function" && !(await window.GoopterPOS.isKiosk())) {
+    await window.GoopterPOS.enterKiosk();
+}
 ```
 
 The same rules as the other two apps hold:
@@ -127,7 +132,8 @@ data, so the next store does not open signed in as the last one.
 
 Window mode is Kiosk or Window. It applies at once and is saved as `{"kiosk": false}` or
 `{"kiosk": true}` in `settings.json` in the user data folder, so it holds on every launch. A missing
-or unreadable file means kiosk. In an unpackaged build `GOOPTER_WINDOWED=true` overrides it. Window
+or unreadable file means Window, so a fresh install opens windowed until Kiosk is chosen from the
+log or the page calls `GoopterPOS.enterKiosk()`. In an unpackaged build `GOOPTER_WINDOWED=true` overrides it. Window
 mode never enables developer tools.
 
 The display is kept awake while the POS is open.

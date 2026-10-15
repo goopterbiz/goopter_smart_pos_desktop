@@ -98,10 +98,22 @@ function registerIpc(pos: PosWindow, handler: PrintBridgeHandler, log: JobLog): 
     return handler.handle(envelope, origin, isMainFrame);
   });
 
-  ipcMain.handle("goopter:open-log", (event: IpcMainInvokeEvent) => {
-    if (roleOf(event.senderFrame) !== "pos") throw new Error("Not permitted.");
-    pos.openLog();
-  });
+  // Saved first, so a mode that cannot be saved is not applied for this run only (C5).
+  const setWindowMode = async (kiosk: boolean, origin: string) => {
+    writeSettings({ kiosk });
+    pos.setKiosk(kiosk);
+    await log.append({ timestamp: new Date(), event: "window_mode", origin, outcome: kiosk ? "kiosk" : "window" });
+  };
+
+  const posHandle = (channel: string, fn: (event: IpcMainInvokeEvent) => unknown) => {
+    ipcMain.handle(channel, (event) => {
+      if (roleOf(event.senderFrame) !== "pos") throw new Error("Not permitted.");
+      return fn(event);
+    });
+  };
+  posHandle("goopter:open-log", () => pos.openLog());
+  posHandle("goopter:enter-kiosk", (event) => setWindowMode(true, originOf(event.senderFrame?.url ?? "") ?? "unknown"));
+  posHandle("goopter:is-kiosk", () => pos.window.isKiosk());
 
   /** The app's own screens only. A POS page that found these channels gets nothing from them. */
   const shellHandle = (channel: string, fn: (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown) => {
@@ -132,11 +144,8 @@ function registerIpc(pos: PosWindow, handler: PrintBridgeHandler, log: JobLog): 
   shellHandle("shell:log-path", () => path.join(app.getPath("userData"), LOG_FILE_NAME));
   shellHandle("shell:log-menu", (_event, open) => pos.setLogMenuOpen(open === true));
   shellHandle("shell:get-kiosk", () => pos.window.isKiosk());
-  // Saved first, so a mode that cannot be saved is not applied for this run only (C5).
-  shellHandle("shell:set-kiosk", async (_event, value) => {
+  shellHandle("shell:set-kiosk", (_event, value) => {
     if (typeof value !== "boolean") throw new Error("Window mode must be true or false.");
-    writeSettings({ kiosk: value });
-    pos.setKiosk(value);
-    await log.append({ timestamp: new Date(), event: "window_mode", origin: "app", outcome: value ? "kiosk" : "window" });
+    return setWindowMode(value, "app");
   });
 }

@@ -37,6 +37,8 @@ if (role.role === "pos") {
       return reply.response;
     },
     openLog: () => ipcRenderer.invoke("goopter:open-log"),
+    enterKiosk: () => ipcRenderer.invoke("goopter:enter-kiosk"),
+    isKiosk: () => ipcRenderer.invoke("goopter:is-kiosk"),
   });
 } else if (role.role === "shell") {
   contextBridge.exposeInMainWorld("goopterShell", {

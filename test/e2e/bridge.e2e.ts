@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -77,7 +77,7 @@ test("GoopterPOS has the shape iOS and Android give it, and no Bluetooth bridge"
   });
   expect(shape).toEqual({
     protocolVersions: [2],
-    keys: ["openLog", "print", "protocolVersions", "usbPrinting", "version"],
+    keys: ["enterKiosk", "isKiosk", "openLog", "print", "protocolVersions", "usbPrinting", "version"],
     printIsFunction: true,
     usbPrinting: true,
     frozen: true,
@@ -185,31 +185,36 @@ test("GoopterPOS.openLog() opens the diagnostic log once, and a second call keep
   expect(app.windows()).toHaveLength(1);
 });
 
-test("goopter:open-log refuses a frame that is not the POS", async () => {
-  const outcome = await app.evaluate(async ({ ipcMain }) => {
-    const handler = (ipcMain as any)._invokeHandlers.get("goopter:open-log");
-    if (typeof handler !== "function") {
-      throw new Error("ipcMain._invokeHandlers has no goopter:open-log handler; the internal API may have changed");
-    }
-    const event = { senderFrame: { url: "https://example.com/", parent: null } };
-    try {
-      await handler(event);
-      return "resolved";
-    } catch (error) {
-      return (error as Error).message;
-    }
+for (const channel of ["goopter:open-log", "goopter:enter-kiosk", "goopter:is-kiosk"]) {
+  test(`${channel} refuses a frame that is not the POS`, async () => {
+    const outcome = await app.evaluate(async ({ ipcMain }, channel) => {
+      const handler = (ipcMain as any)._invokeHandlers.get(channel);
+      if (typeof handler !== "function") {
+        throw new Error(`ipcMain._invokeHandlers has no ${channel} handler; the internal API may have changed`);
+      }
+      const event = { senderFrame: { url: "https://example.com/", parent: null } };
+      try {
+        await handler(event);
+        return "resolved";
+      } catch (error) {
+        return (error as Error).message;
+      }
+    }, channel);
+    expect(outcome).toBe("Not permitted.");
+    expect(app.windows()).toHaveLength(1);
+    expect(await (await app.browserWindow(page)).evaluate((w) => w.isKiosk())).toBe(false);
   });
-  expect(outcome).toBe("Not permitted.");
-  expect(app.windows()).toHaveLength(1);
-});
+}
 
-test("GOOPTER_WINDOWED=true disables kiosk (C1)", async () => {
+test("GOOPTER_WINDOWED=true disables kiosk (C1), and GoopterPOS.isKiosk() says so", async () => {
   const win = await app.browserWindow(page);
   expect(await win.evaluate((w) => w.isKiosk())).toBe(false);
+  expect(await page.evaluate(() => (window as any).GoopterPOS.isKiosk())).toBe(false);
 });
 
-test("GOOPTER_WINDOWED=1 leaves kiosk on; only \"true\" disables it (C1)", async () => {
+test("GOOPTER_WINDOWED=1 leaves a saved kiosk mode on; only \"true\" disables it (C1)", async () => {
   const otherUserData = mkdtempSync(path.join(tmpdir(), "goopter-e2e-"));
+  writeFileSync(path.join(otherUserData, "settings.json"), '{"kiosk":true}');
   const otherApp = await electron.launch({
     args: [root],
     env: {
