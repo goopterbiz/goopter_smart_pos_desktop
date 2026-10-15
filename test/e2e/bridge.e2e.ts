@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -211,8 +211,9 @@ test("GOOPTER_WINDOWED=true disables kiosk (C1)", async () => {
   expect(await win.evaluate((w) => w.isKiosk())).toBe(false);
 });
 
-test("GOOPTER_WINDOWED=1 leaves kiosk on; only \"true\" disables it (C1)", async () => {
+test("GOOPTER_WINDOWED=1 leaves a saved kiosk mode on; only \"true\" disables it (C1)", async () => {
   const otherUserData = mkdtempSync(path.join(tmpdir(), "goopter-e2e-"));
+  writeFileSync(path.join(otherUserData, "settings.json"), '{"kiosk":true}');
   const otherApp = await electron.launch({
     args: [root],
     env: {

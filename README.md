@@ -130,7 +130,8 @@ data, so the next store does not open signed in as the last one.
 
 Window mode is Kiosk or Window. It applies at once and is saved as `{"kiosk": false}` or
 `{"kiosk": true}` in `settings.json` in the user data folder, so it holds on every launch. A missing
-or unreadable file means kiosk. In an unpackaged build `GOOPTER_WINDOWED=true` overrides it. Window
+or unreadable file means Window, so a fresh install opens windowed until Kiosk is chosen from the
+log or the page calls `GoopterPOS.enterKiosk()`. In an unpackaged build `GOOPTER_WINDOWED=true` overrides it. Window
 mode never enables developer tools.
 
 The display is kept awake while the POS is open.
