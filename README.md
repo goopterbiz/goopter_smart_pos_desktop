@@ -124,7 +124,7 @@ them.
 
 | Shortcut | Action |
 |---|---|
-| Ctrl+Shift+L (Cmd+Shift+L on macOS) | Diagnostic log. Its ⋯ menu has Home, Change store and Window mode |
+| Ctrl+Shift+L (Cmd+Shift+L on macOS) | Diagnostic log. Its ⋯ menu has Home, Reload, Change store and Window mode |
 | Ctrl+Shift+Q (Cmd+Shift+Q on macOS) | Quit, after a confirmation |
 
 The store is asked for once and remembered. Change store clears the saved store and the website

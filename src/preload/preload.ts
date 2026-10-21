@@ -46,6 +46,7 @@ if (role.role === "pos") {
     retry: () => ipcRenderer.invoke("shell:retry"),
     changeStore: () => ipcRenderer.invoke("shell:change-store"),
     home: () => ipcRenderer.invoke("shell:home"),
+    reload: () => ipcRenderer.invoke("shell:reload"),
     readLog: () => ipcRenderer.invoke("shell:read-log"),
     closeLog: () => ipcRenderer.invoke("shell:close-log"),
     logPath: () => ipcRenderer.invoke("shell:log-path"),

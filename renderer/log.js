@@ -1,6 +1,6 @@
 "use strict";
 // Read-only on purpose (SPEC §11.1): every control that could sit next to a log is a way to change
-// the system while trying to describe it. Home, Change store and Window mode (C6) are the exceptions,
+// the system while trying to describe it. Home, Reload, Change store and Window mode (C6) are the exceptions,
 // and they sit in the ⋯ menu, away from the log itself.
 const body = document.getElementById("entries");
 const more = document.getElementById("more");
@@ -82,6 +82,10 @@ document.addEventListener("keydown", (event) => {
 document.getElementById("home").addEventListener("click", () => {
   closeMenu();
   window.goopterShell.home();
+});
+document.getElementById("reload").addEventListener("click", () => {
+  closeMenu();
+  window.goopterShell.reload();
 });
 document.getElementById("change").addEventListener("click", () => {
   closeMenu();
