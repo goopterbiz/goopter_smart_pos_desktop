@@ -139,6 +139,13 @@ export class PosWindow {
     this.logWindow?.close();
   }
 
+  async reload(): Promise<void> {
+    this.closeLog();
+    await session.defaultSession.clearCache().catch(() => undefined);
+    if (isAllowed(this.window.webContents.getURL(), debugOrigin)) this.window.webContents.reloadIgnoringCache();
+    else this.openHome();
+  }
+
   /**
    * Change Store: forget the store and its signed-in session, so the next one starts clean. The
    * POS page is unloaded first, so it cannot write its cookies or storage back after the clear.

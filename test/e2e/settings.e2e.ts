@@ -123,7 +123,7 @@ test("the log header reads ⋯, Diagnostic log, Refresh, Done, and the footer sh
   await expect(log.locator("footer")).toHaveText(logFile());
 });
 
-test("the ⋯ menu opens from the button's left edge with Home, Change store, and Window mode", async () => {
+test("the ⋯ menu opens from the button's left edge with Home, Reload, Change store, and Window mode", async () => {
   await expect(log.locator("#menu")).toBeHidden();
   await log.click("#more");
   await expect(log.locator("#menu")).toBeVisible();
@@ -132,7 +132,7 @@ test("the ⋯ menu opens from the button's left edge with Home, Change store, an
   );
   expect(menu.left).toBe(button.left);
   expect(menu.top).toBeGreaterThanOrEqual(button.bottom);
-  await expect(log.locator("#menu [role^=menuitem]")).toHaveText(["Home", "Change store…", "Kiosk", "Window"]);
+  await expect(log.locator("#menu [role^=menuitem]")).toHaveText(["Home", "Reload", "Change store…", "Kiosk", "Window"]);
   await expect(log.locator("#menu hr")).toHaveCount(1);
   await expect(log.locator("#menu")).toContainText("Window mode");
   await expect(log.locator("#menu")).toContainText("Applies now and on every launch.");
